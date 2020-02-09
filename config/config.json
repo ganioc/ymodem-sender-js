@@ -1,0 +1,11 @@
+{
+	"protocol": "",
+	"baudrate": 115200,
+	"slave": {
+		"addr": 80,
+		"port": "/dev/tty.usbserial-14240"
+	},
+	"file": {
+		"name": "./bin/L072cbos.bin"
+	}
+}
