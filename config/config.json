@@ -6,6 +6,7 @@
 		"port": "/dev/tty.usbserial-14240"
 	},
 	"file": {
-		"name": "./bin/L072cbos.bin"
+		"name": "./bin/L072cbos.bin",
+		"symbol": "L072cbos.bin"
 	}
 }

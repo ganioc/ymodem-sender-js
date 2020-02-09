@@ -4,6 +4,7 @@ const SerialPort = require('serialport')
 const fs = require("fs");
 const Config = require("./config/config.json");
 const crc16 = require("./crc16");
+const Packet = require("./packet");
 
 // const fileName = "./bin/L072cbos.bin";
 const SOH = 0x01 /* start of 128-byte data packet */
@@ -25,6 +26,8 @@ const MAX_ERRORS = 10
 let rxBuffer = new Buffer(1024 + 16);
 let rxIndex = 0;
 
+let bLoop = true;
+
 function DelayMs (ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -33,6 +36,7 @@ function printConfig (cfg) {
     console.log("Port:", cfg.slave.port);
     console.log("Baudrate:", cfg.baudrate);
     console.log("File name:", cfg.file.name);
+    console.log("File symbol:", cfg.file.symbol);
     console.log("\n")
 }
 function preWorking (port) {
@@ -81,6 +85,86 @@ function ReceivePacket (pot, buf, len, timeout) {
         pot.on("data", callback);
     });
 }
+function writeSerial (pot, buf) {
+    console.log("writeSerial ...")
+    for (let i = 0; i < buf.length; i += 16) {
+        let str = "0x" + i.toString(16) + ": ";
+        let upper = (buf.length < i + 16) ? buf.length : i + 16;
+        for (let j = i; j < upper; j++) {
+            str += buf[j].toString(16);
+            str += " "
+        }
+        console.log(str);
+    }
+    pot.write(buf);
+}
+
+async function sendFile (pot, binBuf) {
+    console.log("sendFile...")
+    let id = 0;
+    // send out id=0 block
+    do {
+        let blockZero = Packet.getNormalPacket(
+            id,
+            Packet.getZeroContent(Config.file.symbol, binBuf.length));
+
+        // console.log(blockZero.toString());
+        writeSerial(pot, blockZero);
+        console.log("Send out blockZero");
+
+        // ACK
+        let result = await ReceivePacket(pot, rxBuffer, 1, 1500);
+        if (result === "ok") {
+            printRxBuf();
+        } else {
+            bLoop = false;
+            return;
+        }
+
+        if (rxBuffer[0] === ACK) {
+            break;
+        }
+    } while (true)
+
+    // CRC16
+    result = await ReceivePacket(pot, rxBuffer, 1, 1500);
+    if (result === "ok") {
+        printRxBuf();
+    } else {
+        bLoop = false;
+        return;
+    }
+
+    if (rxBuffer[0] !== CRC16) {
+        bLoop = false;
+        return;
+    }
+
+    // id++
+    for (let i = 0; i < binBuf.length; i += 128) {
+        console.log("Send " + i + " block");
+        let upper = (binBuf.length < i + 128) ? binBuf.length : i + 128;
+
+
+        let block = Packet.getNormalPacket(
+            i / 128 + 1,
+            new Buffer(128));
+        writeSerial(pot, block);
+
+        result = await ReceivePacket(pot, rxBuffer, 1, 1500);
+        if (result === "ok") {
+            printRxBuf();
+        } else {
+            bLoop = false;
+            return;
+        }
+        if (rxBuffer[0] !== ACK) {
+            bLoop = false;
+            return;
+        }
+    }
+    console.log("End of sendFile");
+}
 
 async function main () {
     console.log("-- Hello world --");
@@ -110,16 +194,18 @@ async function main () {
 
     await DelayMs(1000);
 
-    while (true) {
+    while (bLoop) {
         let result = await ReceivePacket(port, rxBuffer, 1, 1500);
         console.log(result);
         if (result === "ok") {
             printRxBuf();
         }
+        if (rxBuffer[0] === CRC16) {
+            sendFile(port, binary);
+            bLoop = false;
+        }
 
     }
-
-
 
     console.log('-- end --');
 }
