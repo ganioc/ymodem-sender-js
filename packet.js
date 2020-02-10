@@ -84,7 +84,7 @@ function getZeroContent (fileSymbol, fileLen) {
 
   let buf = new Buffer(128);
 
-  let fileLenBuf = Buffer.from(fileLen.toString(16));
+  let fileLenBuf = Buffer.from(fileLen + '');
   let symbolBuf = Buffer.from(fileSymbol);
 
   let i = 0, j = 0;

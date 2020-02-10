@@ -23,6 +23,8 @@ const NAK_TIMEOUT = 10000
 const DOWNLOAD_TIMEOUT = 1000 /* One second retry delay */
 const MAX_ERRORS = 10
 
+
+
 let rxBuffer = new Buffer(1024 + 16);
 let rxIndex = 0;
 
@@ -41,7 +43,6 @@ function printConfig (cfg) {
 }
 function preWorking (port) {
     // send out character '1'
-
     port.write('1');
     console.log("Send out '1' to set slave into YMODEM state");
 }
@@ -63,25 +64,30 @@ function ReceivePacket (pot, buf, len, timeout) {
     rxIndex = 0;
 
     return new Promise((resolve, reject) => {
+
         let handle = setTimeout(() => {
             console.log("ReceivePacket timeout");
             pot.removeAllListeners("data");
             pot.removeListener("data", callback);
             resolve('timeout')
         }, timeout);
+
         let callback = (data) => {
             let i = 0;
             for (i = 0; i < data.length; i++) {
                 buf[rxIndex++] = data[i];
             }
             if (rxIndex >= len) {
-                clearTimeout(handle);
+                if (handle) {
+                    clearTimeout(handle);
+                }
                 console.log("ReceivePacket rx length:", rxIndex);
                 pot.removeAllListeners("data");
                 pot.removeListener("data", callback);
                 resolve('ok')
             }
         };
+
         pot.on("data", callback);
     });
 }
@@ -104,54 +110,67 @@ async function sendFile (pot, binBuf) {
     let id = 0;
     // send out id=0 block
     do {
+        await DelayMs(1000);
         let blockZero = Packet.getNormalPacket(
             id,
             Packet.getZeroContent(Config.file.symbol, binBuf.length));
 
         // console.log(blockZero.toString());
         writeSerial(pot, blockZero);
-        console.log("Send out blockZero");
+        console.log("- Send out blockZero");
 
         // ACK
-        let result = await ReceivePacket(pot, rxBuffer, 1, 1500);
+        let result = await ReceivePacket(pot, rxBuffer, 1, 2000);
         if (result === "ok") {
             printRxBuf();
         } else {
-            bLoop = false;
-            return;
+            console.log("Received nothing");
+            continue;
         }
 
         if (rxBuffer[0] === ACK) {
-            break;
+            console.log("Received ACK")
+        } else {
+            continue
         }
+
+        // CRC16
+        result = await ReceivePacket(pot, rxBuffer, 1, 2000);
+        if (result === "ok") {
+            printRxBuf();
+        } else {
+            console.log("Received nothing");
+            continue;
+        }
+
+        if (rxBuffer[0] === CRC16) {
+            console.log("Received CRC")
+            break;
+        } else {
+            continue;
+        }
+
     } while (true)
-
-    // CRC16
-    result = await ReceivePacket(pot, rxBuffer, 1, 1500);
-    if (result === "ok") {
-        printRxBuf();
-    } else {
-        bLoop = false;
-        return;
-    }
-
-    if (rxBuffer[0] !== CRC16) {
-        bLoop = false;
-        return;
-    }
+    console.log("- Send Block 0 succeed!")
 
     // id++
     for (let i = 0; i < binBuf.length; i += 128) {
-        console.log("Send " + i + " block");
-        let upper = (binBuf.length < i + 128) ? binBuf.length : i + 128;
+        console.log("- Send block " + (i / 128 + 1) + " block");
 
+        let upper = (binBuf.length < i + 128) ?
+            binBuf.length : i + 128;
+
+        let payloadBuf = new Buffer(128);
+        for (let j = i; j < upper; j++) {
+            payloadBuf[j - i] = binBuf[j];
+        }
 
         let block = Packet.getNormalPacket(
             i / 128 + 1,
-            new Buffer(128));
+            payloadBuf);
         writeSerial(pot, block);
 
-        result = await ReceivePacket(pot, rxBuffer, 1, 1500);
+        let result = await ReceivePacket(pot, rxBuffer, 1, 1500);
         if (result === "ok") {
             printRxBuf();
         } else {
@@ -162,6 +181,7 @@ async function sendFile (pot, binBuf) {
             bLoop = false;
             return;
         }
+        console.log("- Send block " + (i / 128 + 1) + " succceed!");
     }
     console.log("End of sendFile");
 }
@@ -190,11 +210,14 @@ async function main () {
 
     console.log("Begin to download");
 
-    preWorking(port);
 
-    await DelayMs(1000);
 
     while (bLoop) {
+
+        preWorking(port);
+
+        await DelayMs(1000);
+
         let result = await ReceivePacket(port, rxBuffer, 1, 1500);
         console.log(result);
         if (result === "ok") {
@@ -202,9 +225,10 @@ async function main () {
         }
         if (rxBuffer[0] === CRC16) {
             sendFile(port, binary);
-            bLoop = false;
-        }
 
+        }
+        await DelayMs(5000);
+        console.log("Resend the file")
     }
 
     console.log('-- end --');
