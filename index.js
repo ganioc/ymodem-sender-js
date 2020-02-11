@@ -197,7 +197,7 @@ async function sendFile (pot, binBuf) {
 async function syncWithRx (pot, buf) {
     let counter = 0;
     return new Promise(async (resolve) => {
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 2; i++) {
             let result = await ReceivePacket(pot, buf, 1, 15000);
             console.log(result);
             if (result === "ok") {
@@ -207,7 +207,7 @@ async function syncWithRx (pot, buf) {
                 }
             }
         }
-        if (counter >= 2) {
+        if (counter >= 1) {
             resolve(true);
         } else {
             resolve(false);
