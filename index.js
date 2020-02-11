@@ -5,6 +5,9 @@ const fs = require("fs");
 const Config = require("./config/config.json");
 const crc16 = require("./crc16");
 const Packet = require("./packet");
+const events = require("events");
+const emData = new events.EventEmitter();
+
 
 // const fileName = "./bin/L072cbos.bin";
 const SOH = 0x01 /* start of 128-byte data packet */
@@ -67,8 +70,7 @@ function ReceivePacket (pot, buf, len, timeout) {
 
         let handle = setTimeout(() => {
             console.log("ReceivePacket timeout");
-            pot.removeAllListeners("data");
-            pot.removeListener("data", callback);
+            emData.removeAllListeners("data");
             resolve('timeout')
         }, timeout);
 
@@ -82,13 +84,12 @@ function ReceivePacket (pot, buf, len, timeout) {
                     clearTimeout(handle);
                 }
                 console.log("ReceivePacket rx length:", rxIndex);
-                pot.removeAllListeners("data");
-                pot.removeListener("data", callback);
+                emData.removeAllListeners("data");
                 resolve('ok')
             }
         };
 
-        pot.on("data", callback);
+        emData.on("data", callback);
     });
 }
 function writeSerial (pot, buf) {
@@ -185,7 +186,26 @@ async function sendFile (pot, binBuf) {
     }
     console.log("End of sendFile");
 }
-
+async function syncWithRx (pot, buf) {
+    let counter = 0;
+    return new Promise(async (resolve) => {
+        for (let i = 0; i < 3; i++) {
+            let result = await ReceivePacket(pot, buf, 1, 15000);
+            console.log(result);
+            if (result === "ok") {
+                printRxBuf();
+                if (buf[0] === CRC16) {
+                    counter++;
+                }
+            }
+        }
+        if (counter >= 2) {
+            resolve(true);
+        } else {
+            resolve(false);
+        }
+    });
+}
 async function main () {
     console.log("-- Hello world --");
 
@@ -202,6 +222,10 @@ async function main () {
         baudRate: Config.baudrate
     });
 
+    port.on("data", (data) => {
+        emData.emit("data", data);
+    })
+
 
     console.log("Read a bin file:", Config.file.name);
 
@@ -211,27 +235,40 @@ async function main () {
     console.log("Begin to download");
 
 
+    port.write('1');
+    let d = 0;
 
     while (bLoop) {
 
-        preWorking(port);
+        /*  test  */
+        // console.log("send:", d);
+        // port.write(d++ + '')
+        // port.write("abcde")
 
+        // await DelayMs(1000);
+
+        // if (d > 10) {
+        //     d = 0;
+        // }
+
+        preWorking(port);
         await DelayMs(1000);
 
-        let result = await ReceivePacket(port, rxBuffer, 1, 1500);
-        console.log(result);
-        if (result === "ok") {
-            printRxBuf();
+        if ((await syncWithRx(port, rxBuffer)) === true) {
+            // let status = sendFile(port, binary);
+            let status = 0;
+            if (status === 0) {
+                console.log("Send file completed")
+                break;
+            }
         }
-        if (rxBuffer[0] === CRC16) {
-            sendFile(port, binary);
-
-        }
-        await DelayMs(5000);
+        console.log("Wait 2 seconds");
+        await DelayMs(10000);
         console.log("Resend the file")
     }
 
     console.log('-- end --');
+    return;
 }
 
 main();
