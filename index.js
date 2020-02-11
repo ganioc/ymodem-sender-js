@@ -95,10 +95,12 @@ function ReceivePacket (pot, buf, len, timeout) {
 function writeSerial (pot, buf) {
     console.log("writeSerial ...")
     for (let i = 0; i < buf.length; i += 16) {
-        let str = "0x" + i.toString(16) + ": ";
+        let str = "0x";
+        str += ((i.toString(16).length < 2) ? ("0" + i.toString(16)) : i.toString(16)) + ": ";
         let upper = (buf.length < i + 16) ? buf.length : i + 16;
         for (let j = i; j < upper; j++) {
-            str += buf[j].toString(16);
+            str += (buf[j].toString(16).length < 2 ?
+                "0" + buf[j].toString(16) : buf[j].toString(16));
             str += " "
         }
         console.log(str);
@@ -293,7 +295,7 @@ async function sendFileAsync (pot, binBuf) {
                 id,
                 payloadBuf);
 
-            await DelayMs(100);
+            await DelayMs(50);
             writeSerial(pot, block);
 
             let result = await ReceivePacket(pot, rxBuffer, 1, 1000);
@@ -315,6 +317,71 @@ async function sendFileAsync (pot, binBuf) {
                 " succceed!");
         }
 
+        // send EOT
+        console.log("- Send EOT");
+        errors = 0;
+        do {
+            if (errors > 5) {
+                resolve(-3);
+                return;
+            }
+            await DelayMs(1000);
+            writeSerial(pot, Buffer.from([EOT]));
+
+            let result = await ReceivePacket(pot, rxBuffer, 1, 1500);
+            if (result === "ok") {
+                printRxBuf();
+            } else {
+                console.log("no response");
+                errors++;
+
+                continue;
+            }
+            if (rxBuffer[0] !== ACK) {
+                console.log("no ACK")
+                errors++;
+                continue;
+            } else {
+                console.log("ACK")
+                break;
+            }
+
+        } while (true);
+        console.log("- EOT send succeed!")
+
+        // send last block
+        errors = 0;
+        do {
+            if (errors > 3) {
+                console.log("Can not finish")
+                resolve(-3);
+                return;
+            }
+            await DelayMs(1000);
+            let blockLast = Packet.getNormalPacket(
+                0,
+                new Buffer(128)
+            );
+            console.log("Send last block finish")
+            writeSerial(pot, blockLast);
+            let result = await ReceivePacket(pot, rxBuffer, 1, 1000);
+            if (result === "ok") {
+                printRxBuf();
+            } else {
+                console.log("no response");
+                errors++;
+                continue;
+            }
+            if (rxBuffer[0] !== ACK) {
+                console.log("no ACK")
+                errors++;
+                continue;
+            } else {
+                console.log("ACK")
+                break;
+            }
+        } while (true)
+        console.log("last block finished")
         resolve(0);
     });
 }
