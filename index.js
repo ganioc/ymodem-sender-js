@@ -103,11 +103,11 @@ function writeSerial (pot, buf) {
         }
         console.log(str);
     }
-    // pot.write(buf);
-    for (let i = 0; i < buf.length; i++) {
-        let dBuf = Buffer.from([buf[i]])
-        pot.write(dBuf);
-    }
+    pot.write(buf);
+    // for (let i = 0; i < buf.length; i++) {
+    //     let dBuf = Buffer.from([buf[i]])
+    //     pot.write(dBuf);
+    // }
 }
 
 async function sendFile (pot, binBuf) {
@@ -223,10 +223,11 @@ async function sendFileAsync (pot, binBuf) {
     console.log("Sending file ...")
     return new Promise(async (resolve) => {
         do {
+            await DelayMs(1000);
             writeSerial(pot, blockZero);
             console.log("- Send out blockZero");
             // ACK
-            let result = await ReceivePacket(pot, rxBuffer, 1, 2000);
+            let result = await ReceivePacket(pot, rxBuffer, 1, 1000);
             if (result === "ok") {
                 printRxBuf();
             } else {
@@ -278,7 +279,7 @@ async function sendFileAsync (pot, binBuf) {
                 resolve(-2);
                 return;
             }
-            console.log("- Send block " + (i / 128 + 1) + " block");
+            console.log("\n- Send block " + (i / 128 + 1) + " block");
 
             let upper = (binBuf.length < i + 128) ?
                 binBuf.length : i + 128;
@@ -292,6 +293,7 @@ async function sendFileAsync (pot, binBuf) {
                 id,
                 payloadBuf);
 
+            await DelayMs(100);
             writeSerial(pot, block);
 
             let result = await ReceivePacket(pot, rxBuffer, 1, 1000);
@@ -367,6 +369,7 @@ async function main () {
         if ((await syncWithRx(port, rxBuffer)) === true) {
             // let 
             let status = 0;
+            await DelayMs(100);
             status = await sendFileAsync(port, binary);
             if (status === 0) {
                 console.log("Send file completed")
@@ -375,7 +378,7 @@ async function main () {
                 console.log("Send file failed")
             }
         }
-        console.log("Wait 2 seconds");
+        console.log("Wait 10 seconds");
         await DelayMs(10000);
         console.log("Resend the file")
     }
