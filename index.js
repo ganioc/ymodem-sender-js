@@ -206,6 +206,109 @@ async function syncWithRx (pot, buf) {
         }
     });
 }
+async function sendFileAsync (pot, binBuf) {
+    let id = 0;
+    let blockZero = Packet.getNormalPacket(
+        id,
+        Packet.getZeroContent(Config.file.symbol,
+            binBuf.length));
+    let errors = 0;
+
+    console.log("Sending file ...")
+    return new Promise(async (resolve) => {
+        do {
+            writeSerial(pot, blockZero);
+            console.log("- Send out blockZero");
+            // ACK
+            let result = await ReceivePacket(pot, rxBuffer, 1, 2000);
+            if (result === "ok") {
+                printRxBuf();
+            } else {
+                console.log("Received nothing");
+                errors++;
+                continue;
+            }
+
+            if (rxBuffer[0] === ACK) {
+                console.log("Received ACK")
+            } else {
+                errors++;
+                continue
+            }
+
+            // CRC16
+            result = await ReceivePacket(pot, rxBuffer, 1, 2000);
+            if (result === "ok") {
+                printRxBuf();
+            } else {
+                console.log("Received nothing");
+                errors++;
+                continue;
+            }
+
+            if (rxBuffer[0] === CRC16) {
+                console.log("Received CRC")
+                break;
+            } else {
+                errors++;
+                continue;
+            }
+
+        } while (errors < 5)
+
+        if (errors >= 5) {
+            console.log("- Send block 0 fail")
+            resolve(-1);
+            return;
+        } else {
+            console.log("- Send block 0 succeed\r\n")
+        }
+
+        // id++
+        errors = 0;
+        for (let i = 0; i < binBuf.length; i += 128) {
+            if (errors > 5) {
+                console.log("sending blocks fail")
+                resolve(-2);
+                return;
+            }
+            console.log("- Send block " + (i / 128 + 1) + " block");
+
+            let upper = (binBuf.length < i + 128) ?
+                binBuf.length : i + 128;
+
+            let payloadBuf = new Buffer(128);
+            for (let j = i; j < upper; j++) {
+                payloadBuf[j - i] = binBuf[j];
+            }
+            id = i / 128 + 1;
+            let block = Packet.getNormalPacket(
+                id,
+                payloadBuf);
+            writeSerial(pot, block);
+
+            let result = await ReceivePacket(pot, rxBuffer, 1, 1500);
+            if (result === "ok") {
+                printRxBuf();
+            } else {
+                console.log("no response");
+                errors++;
+                i -= 128;
+                continue;
+            }
+            if (rxBuffer[0] !== ACK) {
+                console.log("no ACK")
+                errors++;
+                i -= 128;
+                continue;
+            }
+            console.log("- Send block " + (i / 128 + 1) +
+                " succceed!");
+        }
+
+        resolve(0);
+    });
+}
 async function main () {
     console.log("-- Hello world --");
 
@@ -255,11 +358,14 @@ async function main () {
         await DelayMs(1000);
 
         if ((await syncWithRx(port, rxBuffer)) === true) {
-            // let status = sendFile(port, binary);
+            // let 
             let status = 0;
+            status = await sendFileAsync(port, binary);
             if (status === 0) {
                 console.log("Send file completed")
                 break;
+            } else {
+                console.log("Send file failed")
             }
         }
         console.log("Wait 2 seconds");
@@ -268,7 +374,7 @@ async function main () {
     }
 
     console.log('-- end --');
-    return;
+    process.exit();
 }
 
 main();
