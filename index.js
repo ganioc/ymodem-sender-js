@@ -198,7 +198,7 @@ async function syncWithRx (pot, buf) {
     let counter = 0;
     return new Promise(async (resolve) => {
         for (let i = 0; i < 2; i++) {
-            let result = await ReceivePacket(pot, buf, 1, 15000);
+            let result = await ReceivePacket(pot, buf, 1, 5000);
             console.log(result);
             if (result === "ok") {
                 printRxBuf();
@@ -225,7 +225,7 @@ async function sendFileAsync (pot, binBuf) {
     console.log("Sending file ...")
     return new Promise(async (resolve) => {
         do {
-            await DelayMs(1000);
+            await DelayMs(500);
             writeSerial(pot, blockZero);
             console.log("- Send out blockZero");
             // ACK
