@@ -103,7 +103,11 @@ function writeSerial (pot, buf) {
         }
         console.log(str);
     }
-    pot.write(buf);
+    // pot.write(buf);
+    for (let i = 0; i < buf.length; i++) {
+        let dBuf = Buffer.from([buf[i]])
+        pot.write(dBuf);
+    }
 }
 
 async function sendFile (pot, binBuf) {
@@ -156,6 +160,7 @@ async function sendFile (pot, binBuf) {
 
     // id++
     for (let i = 0; i < binBuf.length; i += 128) {
+
         console.log("- Send block " + (i / 128 + 1) + " block");
 
         let upper = (binBuf.length < i + 128) ?
@@ -169,6 +174,7 @@ async function sendFile (pot, binBuf) {
         let block = Packet.getNormalPacket(
             i / 128 + 1,
             payloadBuf);
+        await DelayMs(100);
         writeSerial(pot, block);
 
         let result = await ReceivePacket(pot, rxBuffer, 1, 1500);
@@ -285,9 +291,10 @@ async function sendFileAsync (pot, binBuf) {
             let block = Packet.getNormalPacket(
                 id,
                 payloadBuf);
+
             writeSerial(pot, block);
 
-            let result = await ReceivePacket(pot, rxBuffer, 1, 1500);
+            let result = await ReceivePacket(pot, rxBuffer, 1, 1000);
             if (result === "ok") {
                 printRxBuf();
             } else {
@@ -338,7 +345,7 @@ async function main () {
     console.log("Begin to download");
 
 
-    port.write('1');
+    // port.write('1');
     let d = 0;
 
     while (bLoop) {
