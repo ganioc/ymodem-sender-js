@@ -295,7 +295,7 @@ async function sendFileAsync (pot, binBuf) {
                 id,
                 payloadBuf);
 
-            await DelayMs(50);
+            await DelayMs(25);
             writeSerial(pot, block);
 
             let result = await ReceivePacket(pot, rxBuffer, 1, 1000);
