@@ -198,7 +198,7 @@ async function syncWithRx (pot, buf) {
     let counter = 0;
     return new Promise(async (resolve) => {
         for (let i = 0; i < 2; i++) {
-            let result = await ReceivePacket(pot, buf, 1, 5000);
+            let result = await ReceivePacket(pot, buf, 1, 2000);
             console.log(result);
             if (result === "ok") {
                 printRxBuf();
@@ -295,7 +295,7 @@ async function sendFileAsync (pot, binBuf) {
                 id,
                 payloadBuf);
 
-            await DelayMs(25);
+            await DelayMs(80);
             writeSerial(pot, block);
 
             let result = await ReceivePacket(pot, rxBuffer, 1, 1000);
