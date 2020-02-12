@@ -325,7 +325,7 @@ async function sendFileAsync (pot, binBuf) {
                 resolve(-3);
                 return;
             }
-            await DelayMs(1000);
+            await DelayMs(100);
             writeSerial(pot, Buffer.from([EOT]));
 
             let result = await ReceivePacket(pot, rxBuffer, 1, 1500);
@@ -357,14 +357,14 @@ async function sendFileAsync (pot, binBuf) {
                 resolve(-3);
                 return;
             }
-            await DelayMs(1000);
+            await DelayMs(100);
             let blockLast = Packet.getNormalPacket(
                 0,
                 new Buffer(128)
             );
             console.log("Send last block finish")
             writeSerial(pot, blockLast);
-            let result = await ReceivePacket(pot, rxBuffer, 1, 1000);
+            let result = await ReceivePacket(pot, rxBuffer, 1, 1500);
             if (result === "ok") {
                 printRxBuf();
             } else {
@@ -433,7 +433,7 @@ async function main () {
 
         preWorking(port);
         await DelayMs(1000);
-
+        console.log("- start time:", new Date().toString());
         if ((await syncWithRx(port, rxBuffer)) === true) {
             // let 
             let status = 0;
@@ -441,6 +441,7 @@ async function main () {
             status = await sendFileAsync(port, binary);
             if (status === 0) {
                 console.log("Send file completed")
+                console.log("- end time:", new Date().toString())
                 break;
             } else {
                 console.log("Send file failed")
