@@ -46,12 +46,12 @@ function getNormalPacket (id, contentBuf) {
   buf[i++] = (crc >> 8) & 0xFF;
   buf[i++] = crc & 0xFF;
 
-  console.log("End i = ", i);
+  console.log("packet forming End i = ", i);
 
   return buf;
 }
 
-function getLongPacket () {
+function getLongPacket (id, contentBuf) {
   let buf = new Buffer(LONG_LEN + 3 + 2);
   let i = 0;
   buf[i++] = STX;
@@ -76,7 +76,7 @@ function getLongPacket () {
   buf[i++] = (crc >> 8) & 0xFF;
   buf[i++] = crc & 0xFF;
 
-  console.log("End i = ", i);
+  console.log("packet forming End i = ", i);
 
   return buf;
 }

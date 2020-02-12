@@ -275,27 +275,28 @@ async function sendFileAsync (pot, binBuf) {
 
         // id++
         errors = 0;
-        for (let i = 0; i < binBuf.length; i += 128) {
+        let nInterval = (bUse1K == true) ? 1024 : 128;
+        for (let i = 0; i < binBuf.length; i += nInterval) {
             if (errors > 5) {
                 console.log("sending blocks fail")
                 resolve(-2);
                 return;
             }
-            console.log("\n- Send block " + (i / 128 + 1) + " block");
+            console.log("\n- Send block " + (i / nInterval + 1) + " block");
 
-            let upper = (binBuf.length < i + 128) ?
-                binBuf.length : i + 128;
+            let upper = (binBuf.length < i + nInterval) ?
+                binBuf.length : i + nInterval;
 
-            let payloadBuf = new Buffer(128);
+            let payloadBuf = new Buffer(nInterval);
             for (let j = i; j < upper; j++) {
                 payloadBuf[j - i] = binBuf[j];
             }
-            id = i / 128 + 1;
-            let block = Packet.getNormalPacket(
+            id = i / nInterval + 1;
+            let block = (bUse1K == true) ? Packet.getLongPacket(id, payloadBuf) : Packet.getNormalPacket(
                 id,
                 payloadBuf);
 
-            await DelayMs(80);
+            await DelayMs(100);
             writeSerial(pot, block);
 
             let result = await ReceivePacket(pot, rxBuffer, 1, 1000);
@@ -388,9 +389,11 @@ async function sendFileAsync (pot, binBuf) {
 async function main () {
     console.log("-- Hello world --");
 
-    let a = crc16(Buffer.from([0x1, 0x2, 0x3, 0x4]), 4);
-    console.log(a);
-    console.log("0x", a.toString(16));
+    console.log("use YMODEM 1k: ", bUse1K)
+
+    // let a = crc16(Buffer.from([0x1, 0x2, 0x3, 0x4]), 4);
+    // console.log(a);
+    // console.log("0x", a.toString(16));
 
     printConfig(Config);
 
@@ -405,12 +408,12 @@ async function main () {
         emData.emit("data", data);
     })
 
-
     console.log("Read a bin file:", Config.file.name);
 
     let binary = fs.readFileSync(Config.file.name);
     console.log("binary size:", binary.length);
     console.log("binary/128=", binary.length / 128);
+    console.log("binary/1024=", binary.length / 1024);
 
     console.log("Begin to download");
 
@@ -454,6 +457,15 @@ async function main () {
 
     console.log('-- end --');
     process.exit();
+}
+
+let bUse1K = false;
+
+for (let i = 0; i < process.argv.length; i++) {
+    if (process.argv[i] === "1k" || process.argv[i] === "1K") {
+        bUse1K = true;
+        break;
+    }
 }
 
 main();
