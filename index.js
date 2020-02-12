@@ -225,7 +225,7 @@ async function sendFileAsync (pot, binBuf) {
     console.log("Sending file ...")
     return new Promise(async (resolve) => {
         do {
-            await DelayMs(500);
+            await DelayMs(400);
             writeSerial(pot, blockZero);
             console.log("- Send out blockZero");
             // ACK
@@ -246,7 +246,7 @@ async function sendFileAsync (pot, binBuf) {
             }
 
             // CRC16
-            result = await ReceivePacket(pot, rxBuffer, 1, 2000);
+            result = await ReceivePacket(pot, rxBuffer, 1, 1000);
             if (result === "ok") {
                 printRxBuf();
             } else {
@@ -410,6 +410,7 @@ async function main () {
 
     let binary = fs.readFileSync(Config.file.name);
     console.log("binary size:", binary.length);
+    console.log("binary/128=", binary.length / 128);
 
     console.log("Begin to download");
 
