@@ -229,7 +229,7 @@ async function sendFileAsync (pot, binBuf) {
             writeSerial(pot, blockZero);
             console.log("- Send out blockZero");
             // ACK
-            let result = await ReceivePacket(pot, rxBuffer, 1, 1000);
+            let result = await ReceivePacket(pot, rxBuffer, 1, 2000);
             if (result === "ok") {
                 printRxBuf();
             } else {
