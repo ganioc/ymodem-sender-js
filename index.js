@@ -44,6 +44,12 @@ function printConfig (cfg) {
     console.log("File symbol:", cfg.file.symbol);
     console.log("\n")
 }
+function preErasing (port) {
+    // send out character '1'
+    port.write('2');
+    console.log("Erase the Flash");
+}
+
 function preWorking (port) {
     // send out character '1'
     port.write('1');
@@ -299,7 +305,7 @@ async function sendFileAsync (pot, binBuf) {
             await DelayMs(100);
             writeSerial(pot, block);
 
-            let result = await ReceivePacket(pot, rxBuffer, 1, 1000);
+            let result = await ReceivePacket(pot, rxBuffer, 1, 2000);
             if (result === "ok") {
                 printRxBuf();
             } else {
@@ -308,7 +314,12 @@ async function sendFileAsync (pot, binBuf) {
                 i -= 128;
                 continue;
             }
-            if (rxBuffer[0] !== ACK) {
+            if (rxBuffer[0] === CA) {
+                console.log("Write to Flash failed")
+                resolve(-5);
+                return;
+            }
+            else if (rxBuffer[0] !== ACK) {
                 console.log("no ACK")
                 errors++;
                 i -= 128;
@@ -319,7 +330,7 @@ async function sendFileAsync (pot, binBuf) {
         }
 
         // send EOT
-        console.log("- Send EOT");
+        console.log("\n- Send EOT");
         errors = 0;
         do {
             if (errors > 5) {
@@ -434,6 +445,8 @@ async function main () {
         //     d = 0;
         // }
 
+        preErasing(port);
+        await DelayMs(2500);
         preWorking(port);
         await DelayMs(1000);
         console.log("- start time:", new Date().toString());
