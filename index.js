@@ -7,6 +7,7 @@ const crc16 = require("./crc16");
 const Packet = require("./packet");
 const events = require("events");
 const emData = new events.EventEmitter();
+let crc32 = require("js-crc32");
 
 
 // const fileName = "./bin/L072cbos.bin";
@@ -471,13 +472,44 @@ async function main () {
     console.log('-- end --');
     process.exit();
 }
+/**
+ * calculate the whole bank crc, I won't consider the size of the real file length
+ */
+function calc_crc () {
+    let len = 0x10000;
 
+    console.log("Calculate the whole bank crc32");
+    console.log("bank size: 0x" + len.toString(16));
+    console.log("Read a bin file:", Config.file.name);
+
+
+    let binary = fs.readFileSync(Config.file.name);
+    console.log("binary size:", binary.length, " 0x" + binary.length.toString(16));
+
+    console.log("binary/128=", binary.length / 128);
+    console.log("binary/1024=", binary.length / 1024);
+
+    let buf = new Buffer(0x10000);
+    for (let i = 0; i < binary.length; i++) {
+        buf[i] = binary[i];
+    }
+
+    console.log("crc32 is:", crc32(new Buffer([0x1a, 0x2b, 0x3c, 0x4d])).toString(16));
+    console.log("-- End --");
+}
+
+/**  ------------------------------------------------------------ */
 let bUse1K = false;
 
 for (let i = 0; i < process.argv.length; i++) {
     if (process.argv[i] === "1k" || process.argv[i] === "1K") {
         bUse1K = true;
         break;
+    } else if (process.argv[i] === "crc" || process.argv[i] === "CRC") {
+        // calc crc
+        calc_crc();
+
+        process.exit(0);
     }
 }
 
