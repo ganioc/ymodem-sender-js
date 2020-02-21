@@ -8,5 +8,8 @@
 	"file": {
 		"name": "./bin/L072cbos.bin",
 		"symbol": "L072cbos.bin"
+	},
+	"test":{
+		"port": "/dev/tty.usbserial-1420"
 	}
 }

@@ -99,7 +99,7 @@ function ReceivePacket (pot, buf, len, timeout) {
         emData.on("data", callback);
     });
 }
-function writeSerial (pot, buf) {
+function writeSerial (pot, buf, ind) {
     console.log("writeSerial ...")
     for (let i = 0; i < buf.length; i += 16) {
         let str = "0x";
@@ -204,7 +204,8 @@ async function sendFile (pot, binBuf) {
 async function syncWithRx (pot, buf) {
     let counter = 0;
     return new Promise(async (resolve) => {
-        for (let i = 0; i < 2; i++) {
+        for (let i = 0; i < 3; i++) {
+            console.log("Sync with Rx counter:", counter);
             let result = await ReceivePacket(pot, buf, 1, 2000);
             console.log(result);
             if (result === "ok") {
@@ -289,7 +290,14 @@ async function sendFileAsync (pot, binBuf) {
                 resolve(-2);
                 return;
             }
+            let str = i.toString(16);
+            while (str.length < 5) {
+                str = "0" + str;
+            }
+
             console.log("\n- Send block " + (i / nInterval + 1) + " block");
+
+            console.log("0x" + str);
 
             let upper = (binBuf.length < i + nInterval) ?
                 binBuf.length : i + nInterval;
@@ -304,7 +312,7 @@ async function sendFileAsync (pot, binBuf) {
                 payloadBuf);
 
             await DelayMs(100);
-            writeSerial(pot, block);
+            writeSerial(pot, block, i);
 
             let result = await ReceivePacket(pot, rxBuffer, 1, 2000);
             if (result === "ok") {
@@ -447,11 +455,14 @@ async function main () {
         // }
 
         preErasing(port);
-        await DelayMs(2500);
+        await DelayMs(2000);
         preWorking(port);
         await DelayMs(1000);
+
         console.log("- start time:", new Date().toString());
         if ((await syncWithRx(port, rxBuffer)) === true) {
+
+            // process.exit(0);
             // let 
             let status = 0;
             await DelayMs(100);
@@ -463,6 +474,8 @@ async function main () {
             } else {
                 console.log("Send file failed")
             }
+        } else {
+            process.exit(0);
         }
         console.log("Wait 10 seconds");
         await DelayMs(10000);
@@ -489,15 +502,76 @@ function calc_crc () {
     console.log("binary/128=", binary.length / 128);
     console.log("binary/1024=", binary.length / 1024);
 
+    // let buf = new Buffer(0x10000);
     let buf = new Buffer(0x10000);
-    for (let i = 0; i < binary.length; i++) {
-        buf[i] = binary[i];
+    for (let i = 0; i < buf.length; i++) {
+        if (i < binary.length) {
+            buf[i] = binary[i];
+        }
     }
-
+    console.log("\n[0x1a, 0x2b, 0x3c, 0x4d] ->")
     console.log("crc32 is:", crc32(new Buffer([0x1a, 0x2b, 0x3c, 0x4d])).toString(16));
-    console.log("-- End --");
-}
 
+    let newCRC = crc32(buf);
+    var buf1 = new Buffer(4);
+
+    buf1.writeInt32BE(newCRC);
+
+    let valCRC = buf1.readUInt32BE().toString(16);
+    console.log("newCRC is:", valCRC);
+
+    console.log("-- End --");
+
+    /*
+        console.log("\nPrint out the file:")
+        buf = binary;
+        for (let i = 0; i < buf.length; i += 16) {
+            let str = "";
+            str += ((i.toString(16).length < 2) ? ("0" + i.toString(16)) : i.toString(16)) + ": ";
+            while (str.length < 7) {
+                str = "0" + str;
+            }
+            str = "0x" + str;
+            for (let j = i; j < i + 16; j = j + 4) {
+                // str += (buf[j].toString(16).length < 2 ?
+                //     "0" + buf[j].toString(16) : buf[j].toString(16));
+                // str += " "
+                let a1 = (buf[j].toString(16).length < 2 ?
+                    "0" + buf[j].toString(16) : buf[j].toString(16));
+                let a2 = (buf[j + 1].toString(16).length < 2 ?
+                    "0" + buf[j + 1].toString(16) : buf[j + 1].toString(16));
+                let a3 = (buf[j + 2].toString(16).length < 2 ?
+                    "0" + buf[j + 2].toString(16) : buf[j + 2].toString(16));
+                let a4 = (buf[j + 3].toString(16).length < 2 ?
+                    "0" + buf[j + 3].toString(16) : buf[j + 3].toString(16));
+                str += (a4 + a3 + a2 + a1 + " ");
+            }
+            console.log(str);
+        }
+        // for (let i = 0; i < buf.length; i += 16) {
+        //     let str = "0x";
+        //     str += ((i.toString(16).length < 2) ? ("0" + i.toString(16)) : i.toString(16)) + ": ";
+        //     let upper = (buf.length < i + 16) ? buf.length : i + 16;
+        //     for (let j = i; j < upper; j++) {
+        //         str += (buf[j].toString(16).length < 2 ?
+        //             "0" + buf[j].toString(16) : buf[j].toString(16));
+        //         str += " "
+        //     }
+        //     console.log(str);
+        // }
+    */
+}
+async function testUart () {
+    let port = new SerialPort(Config.test.port, {
+        baudRate: Config.baudrate
+    });
+    console.log("Test uart:", Config.test.port);
+    while (true) {
+        await DelayMs(100);
+        console.log("a");
+        port.write("a");
+    }
+}
 /**  ------------------------------------------------------------ */
 let bUse1K = false;
 
@@ -510,6 +584,9 @@ for (let i = 0; i < process.argv.length; i++) {
         calc_crc();
 
         process.exit(0);
+    } else if (process.argv[i] === "uart") {
+        // send from uart
+        testUart();
     }
 }
 
