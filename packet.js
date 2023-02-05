@@ -22,7 +22,7 @@ const LONG_LEN = 1024;
 const DATA_INDEX = 3;
 
 function getNormalPacket (id, contentBuf) {
-  let buf = new Buffer(NORMAL_LEN + 3 + 2);
+  let buf = new Buffer.alloc(NORMAL_LEN + 3 + 2);
   let i = 0;
   buf[i++] = SOH;
 
@@ -52,7 +52,7 @@ function getNormalPacket (id, contentBuf) {
 }
 
 function getLongPacket (id, contentBuf) {
-  let buf = new Buffer(LONG_LEN + 3 + 2);
+  let buf = new Buffer.alloc(LONG_LEN + 3 + 2);
   let i = 0;
   buf[i++] = STX;
 
@@ -82,7 +82,7 @@ function getLongPacket (id, contentBuf) {
 }
 function getZeroContent (fileSymbol, fileLen) {
 
-  let buf = new Buffer(128);
+  let buf = new Buffer.alloc(128);
 
   let fileLenBuf = Buffer.from(fileLen + '');
   let symbolBuf = Buffer.from(fileSymbol);

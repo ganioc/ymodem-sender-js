@@ -1,12 +1,14 @@
 {
   "name": "ymodem-sender",
-  "version": "1.0.0",
-  "description": "",
+  "version": "1.0.1",
+  "description": "Test ymodem tx/tx with uart",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "rx": "node ./test/rx.js",
+    "tx": "node ./test/tx.js"
   },
-  "author": "",
+  "author": "yango",
   "license": "ISC",
   "dependencies": {
     "js-crc32": "^1.0.1",

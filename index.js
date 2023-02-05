@@ -29,7 +29,7 @@ const MAX_ERRORS = 10
 
 
 
-let rxBuffer = new Buffer(1024 + 16);
+let rxBuffer = new Buffer.alloc(1024 + 16);
 let rxIndex = 0;
 
 let bLoop = true;
@@ -503,7 +503,7 @@ function calc_crc () {
     console.log("binary/1024=", binary.length / 1024);
 
     // let buf = new Buffer(0x10000);
-    let buf = new Buffer(0x10000);
+    let buf = new Buffer.alloc(0x10000);
     for (let i = 0; i < buf.length; i++) {
         if (i < binary.length) {
             buf[i] = binary[i];
@@ -513,7 +513,7 @@ function calc_crc () {
     console.log("crc32 is:", crc32(new Buffer([0x1a, 0x2b, 0x3c, 0x4d])).toString(16));
 
     let newCRC = crc32(buf);
-    var buf1 = new Buffer(4);
+    var buf1 = new Buffer.alloc(4);
 
     buf1.writeInt32BE(newCRC);
 
