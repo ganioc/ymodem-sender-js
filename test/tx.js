@@ -120,7 +120,7 @@ async function syncWithRx (pot, buf) {
     // 
     while(true){
           console.log("Sync with Rx counter:", counter);
-          let result = await ReceivePacket(pot, buf, 1, 2000);
+          let result = await ReceivePacket(pot, buf, 1, 1000);
           console.log(result);
           if (result === "OK") {
               printRxBuf();
@@ -346,15 +346,16 @@ async function main () {
       console.log("sync ok")
     }else{
       console.log("sync failed")
-      await DelayMs(50000);
+      await DelayMs(3000);
       continue
     }
-
-    console.log("- start time:", new Date().toString());
+    let startTime = new Date();
+    
 
     result = await sendFileAsync(port, binary);
     if(result == "OK"){
       console.log("=============Send file completed===========")
+      console.log("- start time:", startTime.toString());
       console.log("-- end time:", new Date().toString())
     }else{
       console.log("Send file failed")

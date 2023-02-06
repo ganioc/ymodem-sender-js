@@ -377,12 +377,15 @@ async function main() {
 
   await DelayMs(500);
 
-  console.log("-- start time :", new Date().toString())
+  let startTime = new Date();
+
+  
 
   let result = await SerialDownload(port, rxBuffer)
 
   if (result == "OK") {
     console.log("================Receive file completed=============")
+    console.log("-- start time :", startTime.toString())
     console.log("-- end time:", new Date().toString())
   } else {
     console.log("Receive file failed")
