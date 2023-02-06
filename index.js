@@ -101,6 +101,7 @@ function ReceivePacket (pot, buf, len, timeout) {
 }
 function writeSerial (pot, buf, ind) {
     console.log("writeSerial ...")
+    // Only print out
     for (let i = 0; i < buf.length; i += 16) {
         let str = "0x";
         str += ((i.toString(16).length < 2) ? ("0" + i.toString(16)) : i.toString(16)) + ": ";
@@ -175,7 +176,7 @@ async function sendFile (pot, binBuf) {
         let upper = (binBuf.length < i + 128) ?
             binBuf.length : i + 128;
 
-        let payloadBuf = new Buffer(128);
+        let payloadBuf = new Buffer.alloc(128);
         for (let j = i; j < upper; j++) {
             payloadBuf[j - i] = binBuf[j];
         }
@@ -302,7 +303,7 @@ async function sendFileAsync (pot, binBuf) {
             let upper = (binBuf.length < i + nInterval) ?
                 binBuf.length : i + nInterval;
 
-            let payloadBuf = new Buffer(nInterval);
+            let payloadBuf = new Buffer.alloc(nInterval);
             for (let j = i; j < upper; j++) {
                 payloadBuf[j - i] = binBuf[j];
             }
@@ -381,7 +382,7 @@ async function sendFileAsync (pot, binBuf) {
             await DelayMs(100);
             let blockLast = Packet.getNormalPacket(
                 0,
-                new Buffer(128)
+                new Buffer.alloc(128)
             );
             console.log("Send last block finish")
             writeSerial(pot, blockLast);

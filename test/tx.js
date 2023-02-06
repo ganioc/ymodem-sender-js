@@ -22,7 +22,7 @@ function DelayMs (ms) {
 
 function printConfig (cfg) {
   // console.log(cfg);
-  console.log("Port:", cfg.slave.port);
+  console.log("Port:", cfg.tx.port);
   console.log("Baudrate:", cfg.baudrate);
   console.log("File name:", cfg.file.name);
   console.log("File symbol:", cfg.file.symbol);
@@ -32,6 +32,7 @@ function printConfig (cfg) {
 async function main () {
   console.log("-- TX --");
   console.log("use Ymodem 1k: ", bUse1K);
+  printConfig(Config)
 
   let port = new SerialPort(Config.tx.port, {
     baudRate: Config.baudrate

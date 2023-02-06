@@ -39,13 +39,15 @@ async function main () {
     baudRate: Config.baudrate
   });
 
-  emData.on("data", (data) => {
-    console.log("rx: ", data);
-  })
+  // emData.on("data", (data) => {
+  //   console.log("rx => ", "len:", data.length ,data);
+  // })
 
-  port.on("data", (data) => {
-    emData.emit("data", data);
-  })
+  // port.on("data", (data) => {
+  //   emData.emit("data", data);
+  // })
+
+  console.log("Serial download ...")
 
 }
 
