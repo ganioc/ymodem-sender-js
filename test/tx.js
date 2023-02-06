@@ -73,7 +73,7 @@ function ReceivePacket (pot, buf, len, timeout) {
       let handle = setTimeout(() => {
           console.log("ReceivePacket timeout");
           emData.removeAllListeners("data");
-          resolve('timeout')
+          resolve('TIMEOUT')
       }, timeout);
 
       let callback = (data) => {
@@ -87,7 +87,7 @@ function ReceivePacket (pot, buf, len, timeout) {
               }
               console.log("ReceivePacket rx length:", rxIndex);
               emData.removeAllListeners("data");
-              resolve('ok')
+              resolve('OK')
           }
       };
 
@@ -118,14 +118,17 @@ async function syncWithRx (pot, buf) {
   let counter = 0;
   return new Promise(async (resolve) => {
     // 
-    for (let i = 0; i < 3; i++) {
+    while(true){
           console.log("Sync with Rx counter:", counter);
           let result = await ReceivePacket(pot, buf, 1, 2000);
           console.log(result);
-          if (result === "ok") {
+          if (result === "OK") {
               printRxBuf();
               if (buf[0] === CRC16) {
                   counter++;
+              }
+              if(counter >= 3 ){
+                break;
               }
           }
     }
@@ -151,9 +154,159 @@ async function sendFileAsync(port, binBuf){
     do{
       writeSerial(port, blockZero);
       console.log("- Send out blockZero");
-      break
+      
+      // wait ACK
+      let result = await ReceivePacket(port, rxBuffer, 2, 2000);
+      if(result == "OK"){
+        printRxBuf(rxBuffer, 2)
+      }else{
+        console.log("Received nothing")
+        errors++;
+        continue;
+      }
+      if(rxBuffer[0] == ACK && rxBuffer[1] == CRC16){
+        console.log("Received ACK OK")
+        break;
+      }else{
+        console.log("Received Wrong ACK", rxBuffer);
+        errors++;
+        continue;
+      }
+
+      // wait CRC16
+    }while(errors < 5)
+
+    if(errors >= 5 ){
+      console.log("-- Send block 0 failed")
+      resolve("-1")
+      return;
+    }else{
+      console.log("-- Send block 0 succeed")
+    }
+
+    // id++
+    errors = 0;
+    let nInterval = (bUse1K == true)? 1024: 128;
+    for(let i=0; i< binBuf.length; i+=nInterval){
+      if(errors > 5){
+        console.log("Sending blocks failed")
+        resolve("-2")
+        return
+      }
+      let str = i.toString(16);
+      while(str.length < 5){
+        str = "0" + str;
+      }
+
+      console.log("- Send block ", i/nInterval + 1, " block");
+      console.log("0x" + str);
+
+      let upper = (binBuf.length < i + nInterval)? binBuf.length: i + nInterval;
+      let payloadBuf = new Buffer.alloc(nInterval);
+      for(let j = i; j< upper; j++){
+        payloadBuf[j-i] = binBuf[j];
+      }
+
+      id = i/nInterval + 1;
+      let block = (bUse1K == true)? Packet.getLongPacket(id, payloadBuf):Packet.getNormalPacket(
+        id,
+        payloadBuf
+      )
+
+      // await DelayMs(10)
+      writeSerial(port, block);
+
+      // receive ack
+      let result = await ReceivePacket(port, rxBuffer, 1, 2000);
+      if(result == "OK"){
+        printRxBuf(rxBuffer,1)
+      }else{
+        console.log("no response")
+        errors++;
+        i -= 128;
+        continue;
+      }
+
+      if (rxBuffer[0] === CA) {
+        console.log("Write to Flash failed")
+        resolve("-5");
+        return;
+      }
+      else if (rxBuffer[0] !== ACK) {
+        console.log("no ACK")
+        errors++;
+        i -= 128;
+        continue;
+      }
+      console.log("- Send block " + id +
+      " succceed!");
+    }
+
+    // Send EOT at the end of files
+    console.log("-- Send EOT")
+    errors = 0
+    do {
+      if(errors > 5){
+        resolve("-3")
+        return
+      }
+      await DelayMs(100)
+      writeSerial(port, Buffer.from([EOT]))
+
+      let result = await ReceivePacket(port, rxBuffer, 1, 1500)
+      if(result == "OK"){
+        printRxBuf(rxBuffer, 1);
+      }else{
+        console.log("no response")
+        errors++
+        continue;
+      }
+      if(rxBuffer[0] != ACK){
+        console.log("no ACK ", rxBuffer[0]);
+        errors++;
+        continue;
+      }else{
+        console.log("ACK")
+        break;
+      }
+
+    }while(true);
+    console.log("- EOT send succeed!")
+    
+    // Send last block
+    errors = 0;
+    do {
+      if(errors > 3){
+        console.log("Can not finish session")
+        resolve("-3")
+        return;
+      }
+      await DelayMs(100);
+      let blockLast = Packet.getNormalPacket(
+        0,
+        new Buffer.alloc(128)
+      )
+      console.log("Send last block finished")
+      writeSerial(port, blockLast);
+      let result = await ReceivePacket(port, rxBuffer, 1, 1500)
+      if(result == "OK"){
+        printRxBuf(rxBuffer, 1)
+      }else{
+        console.log("no response");
+        errors++
+        continue;
+      }
+      if(rxBuffer[0] != ACK){
+        console.log("no ACK")
+        errors++;
+        continue;
+      }else{
+        console.log("ACK");
+        break;
+      }
 
     }while(true)
+
     console.log("last block sending finished")
     resolve("OK")
   })
@@ -201,7 +354,7 @@ async function main () {
 
     result = await sendFileAsync(port, binary);
     if(result == "OK"){
-      console.log("Send file completed")
+      console.log("=============Send file completed===========")
       console.log("-- end time:", new Date().toString())
     }else{
       console.log("Send file failed")
