@@ -24,23 +24,28 @@ function writeSerial (pot, buf) {
     }
     pot.write(buf);
 }
+/*
+* Return
+* status: OK, DATA, TIMEOUT, 
+* length: 数据的长度, 128+5, 1024+5, 3个头，2个CRC,
+*/
 async function readSerial(eventEmitter, port, buf, len, timeout) {
 
     rxIndex = 0;
-
-    // let len = 128 + 5; // As we are receiving 1024 packet, actually it's 128 bytes, 
   
     return new Promise(async (resolve) => {
   
       let handle = setTimeout(() => {
-        // console.log("ReceivePacket timeout");
         eventEmitter.removeAllListeners("data");
   
         if(rxIndex > 0){
           printRxBuf(buf, rxIndex);
-          resolve('DATA')
+          resolve({
+            status: 'DATA',
+            length: rxIndex
+          })
         }else{
-          resolve('TIMEOUT')
+          resolve({ status:'TIMEOUT', length: 0})
         }
         
       }, timeout);
@@ -56,10 +61,9 @@ async function readSerial(eventEmitter, port, buf, len, timeout) {
           console.log("ReceivePacket rx length:", rxIndex);
           eventEmitter.removeAllListeners("data");
           printRxBuf(buf, rxIndex);
-          resolve('OK')
+          resolve({status:'OK', length: rxIndex})
         }
       };
-  
       eventEmitter.on("data", callback);
     })
 }

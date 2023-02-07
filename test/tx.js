@@ -18,7 +18,7 @@ const writeSerial = serial.WriteSerial;
 const ReceivePacket = serial.ReadSerial;
 
 
-async function syncWithClient(port, buf) {
+async function syncWithClient(port, buf, times) {
   let counter_sync = 0;
   let counter_timeout = 0
   return new Promise(async (resolve) => {
@@ -26,12 +26,12 @@ async function syncWithClient(port, buf) {
       console.log("Sync with Rx counter:", counter_sync);
       let result = await ReceivePacket(emData, port, buf, 1, 1000);
       console.log(result);
-      if (result === "OK") {
+      if (result.status === "OK") {
         printRxBuf(serial.RxBuffer, serial.RxIndex);
         if (buf[0] === Packet.CRC16) {
           counter_sync++;
         }
-        if (counter_sync >= 2) {
+        if (counter_sync >= times) {
           resolve("OK")
           return
         }
@@ -54,7 +54,7 @@ async function sendBlock0(port, id, fileName, fileLen){
 
       // wait ACK
       let result = await ReceivePacket(emData, port, serial.RxBuffer, 2, 2000);
-      if (result == "OK" && serial.RxBuffer[0] == Packet.ACK && serial.RxBuffer[1] == Packet.CRC16) {
+      if (result.status == "OK" && serial.RxBuffer[0] == Packet.ACK && serial.RxBuffer[1] == Packet.CRC16) {
         console.log("Received ACK OK")
         resolve("OK")
         return;
@@ -84,7 +84,7 @@ async function sendBlockEOT(port){
       writeSerial(port, Buffer.from([Packet.EOT]))
 
       let result = await ReceivePacket(emData, port, serial.RxBuffer, 1, 1000)
-      if (result == "OK") {
+      if (result.status == "OK") {
         printRxBuf(serial.RxBuffer, 1);
       } else {
         console.log("no response")
@@ -142,7 +142,7 @@ async function sendBlockFile(port, buf){
 
       // receive ack
       let result = await ReceivePacket(emData, port, serial.RxBuffer, 1, 1000);
-      if (result == "OK") {
+      if (result.status == "OK") {
         printRxBuf(serial.RxBuffer, 1)
       } else {
         console.log("no response")
@@ -185,7 +185,7 @@ async function sendBlockLast(port){
       }
       writeSerial(port, blockLast);
       let result = await ReceivePacket(emData, port, serial.RxBuffer, 1, 1000)
-      if (result == "OK" && serial.RxBuffer[0] == Packet.ACK) {
+      if (result.status == "OK" && serial.RxBuffer[0] == Packet.ACK) {
         printRxBuf(serial.RxBuffer, 1)
         break
       } else {
@@ -263,7 +263,7 @@ async function main() {
   console.log("Begin to download");
 
   while (true) {
-    let result = await syncWithClient(port, serial.RxBuffer)
+    let result = await syncWithClient(port, serial.RxBuffer ,2)
     if (result == "OK") {
       console.log("sync ok")
     } else {
@@ -278,6 +278,7 @@ async function main() {
       console.log("=============Send file completed===========")
       console.log("- start time:", startTime.toString());
       console.log("-- end time:", new Date().toString())
+      process.exit(0);
     } else {
       console.log("Send file failed")
       process.exit(1)

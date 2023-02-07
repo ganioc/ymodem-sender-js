@@ -45,19 +45,25 @@ function extract_file_name_size(buffer){
   console.log(file_size.toString())
 
 }
-
+/**
+ * 
+ * @param {*} port 
+ * @param {*} buf 
+ * @param {*} timeout 
+ * @returns {status, length,type}
+ * status: OK, type: 
+ */
 async function ReceivePacketEx(port, buf, timeout) {
-  let packet_size = 0;
+  let packet_size = 0; // size of the packet is indicated by 1st byte, 
   let status = "OK";
-
 
   return new Promise(async (resolve) => {
     console.log("ReceivePacketEx()")
     let status1 = await UartReceivePacketEx(emData, port, buf,nInterval+5, 1000);
     console.log("status1", status1);
 
-    // Seems to be a complete packet , 128 size
-    if (status1 == "OK") {
+    // Seems to be a complete packet , (128 size or 1024) + 5
+    if (status1.status == "OK") {
       let char1 = serial.RxBuffer[0];
       switch(char1){
         case Packet.SOH :
@@ -71,6 +77,7 @@ async function ReceivePacketEx(port, buf, timeout) {
           break;
       }
       if(packet_size >= 128){
+        // check packe thead validity
         if(serial.RxBuffer[1] != (0xFF - serial.RxBuffer[2])){
           console.log("packet id error")
           packet_size = 0;
@@ -89,7 +96,7 @@ async function ReceivePacketEx(port, buf, timeout) {
           }
         }
       }
-    } else if (status1 == "DATA") {
+    } else if (status1.status == "DATA") {
       console.log("DATA packet")
       let char1 = serial.RxBuffer[0];
       switch(char1){
@@ -117,11 +124,11 @@ async function ReceivePacketEx(port, buf, timeout) {
 
     packetLength = packet_size;
 
-    resolve(status)
+    resolve({status:status, length: packet_size})
   })
 
 }
-async function SerialDownload(port, binBuf) {
+async function SerialDownload(port) {
   let size         = 0;
   let session_done = 0;
   let result       = "OK";
@@ -135,27 +142,27 @@ async function SerialDownload(port, binBuf) {
     while (session_done == 0 && result == "OK") {
       let packets_received = 0;
       let file_done = 0;
-      let packets_counter = 0;
-      let inRx = 0;
+      // let packets_counter = 0;
+      let inRx_block0 = 0;
       let errors = 0;
 
       while (file_done == 0 && result == "OK") {
         // wait 1000 ms to receive
         let pkt_result = await ReceivePacketEx(port, serial.RxBuffer, 500);
 
-        if(pkt_result == "OK"){
+        if(pkt_result.status == "OK"){
           console.log("Rx valid block, len:", serial.RxIndex)
           errors = 0;
 
-          let packet_length = packetLength;
+          let packet_length = pkt_result.length;
           switch(packet_length){
             case 2:
-              // abort by Sender
+              // abort by Sender, CA, CA
               writeSerial(port, Buffer.from([Packet.ACK]))
               result = "ABORT"
               break;
             case 0:
-              // End of transmission
+              // End of transmission, not conform to YModem protocol
               writeSerial(port, Buffer.from([Packet.ACK]))
               file_done = 1
               break;
@@ -167,7 +174,7 @@ async function SerialDownload(port, binBuf) {
                 writeSerial(port, Buffer.from([Packet.NAK]))
               }else{
                 // First block block 0
-                if(packets_received == 0 && inRx == 0){
+                if(packets_received == 0 && inRx_block0 == 0){
                   if(serial.RxBuffer[3] != 0){ // First packet
                     // File name extraction
                     // File size extraction
@@ -179,7 +186,7 @@ async function SerialDownload(port, binBuf) {
                     writeSerial(port, Buffer.from([Packet.ACK]))
                     // await DelayMs(500);
                     writeSerial(port, Buffer.from([Packet.CRC16]))
-                    inRx = 1;
+                    inRx_block0 = 1;
 
                   }else{ // last packet
                     // File header packet is empty, end session,
@@ -203,15 +210,14 @@ async function SerialDownload(port, binBuf) {
                 }
 
                 packets_received++;
-                packets_counter++;
-                console.log("packet_counted: ", packets_counter)
+                console.log("packet_received: ", packets_received)
                 session_begin = 1;
               }
 
               break;
           }
         }
-        else if(pkt_result == "BUSY"){
+        else if(pkt_result.status == "BUSY"){
           writeSerial(port, Buffer.from([Packet.CA]))
           writeSerial(port, Buffer.from([Packet.CA]))
           result = "ABORT"

@@ -1,7 +1,9 @@
 # YMODEM sender in JS
-For STM32 Downloading firmware
+## test
 
-## Old XMODEM-CRC
+```js
+npm run tx
+npm run rx
 
-
+```
 
