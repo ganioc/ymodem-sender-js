@@ -1,6 +1,13 @@
 
 // const SerialPort = require('serialport')
 
+let rxBuffer = new Buffer.alloc(1024 + 16);
+let rxIndex = 0;
+
+function resetRxIndex(){
+    rxIndex = 0;
+}
+
 function writeSerial (pot, buf, ind) {
     console.log("writeSerial ...")
     // Only print out
@@ -17,10 +24,11 @@ function writeSerial (pot, buf, ind) {
     }
     pot.write(buf);
 }
-async function readSerial(eventEmitter, port, buf, len, timeout, prepare) {
-    prepare();
+async function readSerial(eventEmitter, port, buf, len, timeout) {
 
     // rxIndex = 0;
+    resetRxIndex();
+
     // let len = 128 + 5; // As we are receiving 1024 packet, actually it's 128 bytes, 
   
     return new Promise(async (resolve) => {
@@ -61,4 +69,6 @@ async function readSerial(eventEmitter, port, buf, len, timeout, prepare) {
 
 module.exports = {
     WriteSerial: writeSerial,
+    RxBuffer: rxBuffer,
+    RxIndex: rxIndex,
 }

@@ -12,8 +12,7 @@ const crc16 = require("../crc16");
 const lib = require("../lib")
 const serial = require("../serial")
 
-let rxBuffer = new Buffer.alloc(1024 + 16);
-let rxIndex = 0;
+
 let packetLength = 0;
 let bUse1K = false;
 
@@ -65,7 +64,7 @@ function extract_file_name_size(buffer){
 //   // }
 // }
 async function UartReceivePacketEx(port, buf, timeout) {
-  rxIndex = 0;
+  serial.RxIndex = 0;
   let len = 128 + 5; // As we are receiving 1024 packet, actually it's 128 bytes, 
 
   return new Promise(async (resolve) => {
@@ -74,8 +73,8 @@ async function UartReceivePacketEx(port, buf, timeout) {
       console.log("ReceivePacket timeout");
       emData.removeAllListeners("data");
 
-      if(rxIndex > 0){
-        printRxBuf(buf, rxIndex);
+      if(serial.RxIndex > 0){
+        printRxBuf(buf, serial.RxIndex);
         resolve('DATA')
       }else{
         resolve('TIMEOUT')
@@ -86,15 +85,15 @@ async function UartReceivePacketEx(port, buf, timeout) {
     let callback = (data) => {
       let i = 0;
       for (i = 0; i < data.length; i++) {
-        buf[rxIndex++] = data[i];
+        buf[serial.RxIndex++] = data[i];
       }
-      if (rxIndex >= len) {
+      if (serial.RxIndex >= len) {
         if (handle) {
           clearTimeout(handle);
         }
-        console.log("ReceivePacket rx length:", rxIndex);
+        console.log("ReceivePacket rx length:", serial.RxIndex);
         emData.removeAllListeners("data");
-        printRxBuf(buf, rxIndex);
+        printRxBuf(buf, serial.RxIndex);
 
         resolve('OK')
       }
@@ -114,7 +113,7 @@ async function ReceivePacketEx(port, buf, timeout) {
 
     // Seems to be a complete packet , 128 size
     if (status1 == "OK") {
-      let char1 = rxBuffer[0];
+      let char1 = serial.RxBuffer[0];
       switch(char1){
         case Packet.SOH :
           packet_size = 128
@@ -127,16 +126,16 @@ async function ReceivePacketEx(port, buf, timeout) {
           break;
       }
       if(packet_size >= 128){
-        if(rxBuffer[1] != (0xFF - rxBuffer[2])){
+        if(serial.RxBuffer[1] != (0xFF - serial.RxBuffer[2])){
           console.log("packet id error")
           packet_size = 0;
           status = "ERROR"
         }else{ // compute CRC,
-          let crc = rxBuffer[ packet_size + 3] << 8;
-          crc += rxBuffer[ packet_size + 4];
+          let crc = serial.RxBuffer[ packet_size + 3] << 8;
+          crc += serial.RxBuffer[ packet_size + 4];
 
           let bufTemp = Buffer.alloc(128);
-          rxBuffer.copy(bufTemp, 0, 3, 128 + 3)
+          serial.RxBuffer.copy(bufTemp, 0, 3, 128 + 3)
           let crcTemp = crc16(bufTemp, 128)
           if(crc != crcTemp){
             console.log("crc calc not match!!!")
@@ -147,13 +146,13 @@ async function ReceivePacketEx(port, buf, timeout) {
       }
     } else if (status1 == "DATA") {
       console.log("DATA packet")
-      let char1 = rxBuffer[0];
+      let char1 = serial.RxBuffer[0];
       switch(char1){
         case Packet.EOT:
           status = "OK";
           break;
         case Packet.CA:
-          if(rxBuffer[1] == CA){
+          if(serial.RxBuffer[1] == CA){
             packet_size = 2
           }else{
             status = "ERROR"
@@ -197,10 +196,10 @@ async function SerialDownload(port, binBuf) {
 
       while (file_done == 0 && result == "OK") {
         // wait 1000 ms to receive
-        let pkt_result = await ReceivePacketEx(port, rxBuffer, 500);
+        let pkt_result = await ReceivePacketEx(port, serial.RxBuffer, 500);
 
         if(pkt_result == "OK"){
-          console.log("Rx valid block, len:", rxIndex)
+          console.log("Rx valid block, len:", serial.RxIndex)
           errors = 0;
 
           let packet_length = packetLength;
@@ -217,17 +216,17 @@ async function SerialDownload(port, binBuf) {
               break;
             default:
               // normal packet,
-              console.log("normal packet: ", "rxBuffer[1]", rxBuffer[1], "packets_received:", packets_received);
+              console.log("normal packet: ", "serial.RxBuffer[1]", serial.RxBuffer[1], "packets_received:", packets_received);
 
-              if(rxBuffer[1] != packets_received%256){
+              if(serial.RxBuffer[1] != packets_received%256){
                 writeSerial(port, Buffer.from([Packet.NAK]))
               }else{
                 // First block block 0
                 if(packets_received == 0 && inRx == 0){
-                  if(rxBuffer[3] != 0){ // First packet
+                  if(serial.RxBuffer[3] != 0){ // First packet
                     // File name extraction
                     // File size extraction
-                    extract_file_name_size(rxBuffer)
+                    extract_file_name_size(serial.RxBuffer)
 
                     // Test the size of image to be sent
                     // Image size greater than the Flash size
@@ -247,7 +246,7 @@ async function SerialDownload(port, binBuf) {
 
                 }else{// Other blocks , Data packet
                   let ramsource = Buffer.alloc(128);
-                  rxBuffer.copy(ramsource,0,3,128+3);
+                  serial.RxBuffer.copy(ramsource,0,3,128+3);
                   
                   console.log("Write to EEPROM")
                   printRxBuf(ramsource, 128)
@@ -319,7 +318,7 @@ async function main() {
 
   
 
-  let result = await SerialDownload(port, rxBuffer)
+  let result = await SerialDownload(port, serial.RxBuffer)
 
   if (result == "OK") {
     console.log("================Receive file completed=============")
