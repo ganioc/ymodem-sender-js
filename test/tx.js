@@ -80,6 +80,7 @@ async function sendBlockEOT(port){
         resolve("NOK")
         return
       }
+      await DelayMs(50);
       writeSerial(port, Buffer.from([Packet.EOT]))
 
       let result = await ReceivePacket(emData, port, serial.RxBuffer, 1, 1000)

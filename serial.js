@@ -7,9 +7,6 @@ const printRxBuf = lib.PrintRxBuf;
 let rxBuffer = new Buffer.alloc(1024 + 16);
 let rxIndex = 0;
 
-function resetRxIndex(){
-    rxIndex = 0;
-}
 
 function writeSerial (pot, buf) {
     console.log("writeSerial ...")
