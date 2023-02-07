@@ -10,6 +10,7 @@ const events = require("events")
 const emData = new events.EventEmitter();
 const crc16 = require("../crc16");
 const lib = require("../lib")
+const serial = require("../serial")
 
 let rxBuffer = new Buffer.alloc(1024 + 16);
 let rxIndex = 0;
@@ -18,6 +19,7 @@ let bUse1K = false;
 
 const printRxBuf = lib.PrintRxBuf;
 const DelayMs = lib.DelayMs;
+const writeSerial = serial.WriteSerial;
 
 function extract_file_name_size(buffer){
   let index = 3;
@@ -42,26 +44,26 @@ function extract_file_name_size(buffer){
   console.log(file_size.toString())
 
 }
-function writeSerial(port, buf) {
-  console.log("writeSerial ...")
-  // Only print out
-  for (let i = 0; i < buf.length; i += 16) {
-    let str = "0x";
-    str += ((i.toString(16).length < 2) ? ("0" + i.toString(16)) : i.toString(16)) + ": ";
-    let upper = (buf.length < i + 16) ? buf.length : i + 16;
-    for (let j = i; j < upper; j++) {
-      str += (buf[j].toString(16).length < 2 ?
-        "0" + buf[j].toString(16) : buf[j].toString(16));
-      str += " "
-    }
-    console.log(str);
-  }
-  port.write(buf);
-  // for (let i = 0; i < buf.length; i++) {
-  //     let dBuf = Buffer.from([buf[i]])
-  //     pot.write(dBuf);
-  // }
-}
+// function writeSerial(port, buf) {
+//   console.log("writeSerial ...")
+//   // Only print out
+//   for (let i = 0; i < buf.length; i += 16) {
+//     let str = "0x";
+//     str += ((i.toString(16).length < 2) ? ("0" + i.toString(16)) : i.toString(16)) + ": ";
+//     let upper = (buf.length < i + 16) ? buf.length : i + 16;
+//     for (let j = i; j < upper; j++) {
+//       str += (buf[j].toString(16).length < 2 ?
+//         "0" + buf[j].toString(16) : buf[j].toString(16));
+//       str += " "
+//     }
+//     console.log(str);
+//   }
+//   port.write(buf);
+//   // for (let i = 0; i < buf.length; i++) {
+//   //     let dBuf = Buffer.from([buf[i]])
+//   //     pot.write(dBuf);
+//   // }
+// }
 async function UartReceivePacketEx(port, buf, timeout) {
   rxIndex = 0;
   let len = 128 + 5; // As we are receiving 1024 packet, actually it's 128 bytes, 
@@ -184,13 +186,8 @@ async function SerialDownload(port, binBuf) {
 
   let blocks = 0;
 
-
   return new Promise(async (resolve) => {
     // ymodem, Ymodem_ReceiveEx()
-
-    // while(true){
-    //   writeSerial(Buffer.from[CRC16])
-    // }
     while (session_done == 0 && result == "OK") {
       let packets_received = 0;
       let file_done = 0;

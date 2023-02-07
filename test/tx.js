@@ -8,6 +8,7 @@ const Packet = require("../packet")
 const events = require("events")
 const emData = new events.EventEmitter();
 const lib = require("../lib")
+const serial = require("../serial")
 
 let rxBuffer = new Buffer.alloc(1024 + 16);
 let rxIndex = 0;
@@ -17,6 +18,7 @@ let bUse1K = false;
 const DelayMs = lib.DelayMs;
 const printConfig = lib.PrintConfig;
 const printRxBuf = lib.PrintRxBuf;
+const writeSerial = serial.WriteSerial;
 
 
 function ReceivePacket (pot, buf, len, timeout) {
@@ -49,22 +51,7 @@ function ReceivePacket (pot, buf, len, timeout) {
       emData.on("data", callback);
   });
 }
-function writeSerial (pot, buf, ind) {
-  console.log("writeSerial ...")
-  // Only print out
-  for (let i = 0; i < buf.length; i += 16) {
-      let str = "0x";
-      str += ((i.toString(16).length < 2) ? ("0" + i.toString(16)) : i.toString(16)) + ": ";
-      let upper = (buf.length < i + 16) ? buf.length : i + 16;
-      for (let j = i; j < upper; j++) {
-          str += (buf[j].toString(16).length < 2 ?
-              "0" + buf[j].toString(16) : buf[j].toString(16));
-          str += " "
-      }
-      console.log(str);
-  }
-  pot.write(buf);
-}
+
 async function syncWithRx (pot, buf) {
   let counter = 0;
   return new Promise(async (resolve) => {
