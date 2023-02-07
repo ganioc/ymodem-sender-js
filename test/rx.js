@@ -20,11 +20,11 @@ const DelayMs = lib.DelayMs;
 const writeSerial = serial.WriteSerial;
 const UartReceivePacketEx = serial.ReadSerial;
 
+let file_name = Buffer.alloc(64);
+let file_size = Buffer.alloc(64);
+
 function extract_file_name_size(buffer){
   let index = 3;
-
-  let file_name = Buffer.alloc(64);
-  let file_size = Buffer.alloc(64);
 
   let i = 0;
   while(buffer[index] != 0){

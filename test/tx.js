@@ -104,6 +104,69 @@ async function sendBlockEOT(port){
     resolve("OK")
   });
 }
+async function sendBlockFile(port, buf){
+  let errors = 0;
+  const nInterval = (Packet.BUse1K == true) ? 1024 : 128;
+
+  return new Promise(async (resolve)=>{
+
+    for (let i = 0; i < buf.length; i += nInterval) {
+      if (errors > 5) {
+        console.log("Sending blocks failed")
+        resolve("NOK")
+        return
+      }
+      let str = i.toString(16);
+      while (str.length < 5) {
+        str = "0" + str;
+      }
+
+      console.log("- Send block ", i / nInterval + 1, " block");
+      console.log("0x" + str);
+
+      let upper = (buf.length < i + nInterval) ? buf.length : i + nInterval;
+      let payloadBuf = new Buffer.alloc(nInterval);
+      for (let j = i; j < upper; j++) {
+        payloadBuf[j - i] = buf[j];
+      }
+
+      let id = i / nInterval + 1;
+      let block = (Packet.BUse1K == true) ? Packet.getLongPacket(id, payloadBuf) : Packet.getNormalPacket(
+        id,
+        payloadBuf
+      )
+
+      // await DelayMs(10)
+      writeSerial(port, block);
+
+      // receive ack
+      let result = await ReceivePacket(emData, port, serial.RxBuffer, 1, 1000);
+      if (result == "OK") {
+        printRxBuf(serial.RxBuffer, 1)
+      } else {
+        console.log("no response")
+        errors++;
+        i -= nInterval;
+        continue;
+      }
+
+      if (serial.RxBuffer[0] === Packet.CA) {
+        console.log("Write to Flash failed")
+        resolve("NOK");
+        return;
+      }
+      else if (serial.RxBuffer[0] !== Packet.ACK) {
+        console.log("no ACK")
+        errors++;
+        i -= 128;
+        continue;
+      }
+      console.log("- Send block " + id +
+        " succceed!");
+    }
+    resolve("OK")
+  })
+}
 async function sendBlockLast(port){
   let blockLast = Packet.getNormalPacket(
     0,
@@ -148,61 +211,11 @@ async function sendFileAsync(port, binBuf) {
     } 
 
     // id++
-    errors = 0;
-    let nInterval = (Packet.BUse1K == true) ? 1024 : 128;
-    for (let i = 0; i < binBuf.length; i += nInterval) {
-      if (errors > 5) {
-        console.log("Sending blocks failed")
-        resolve("-2")
-        return
-      }
-      let str = i.toString(16);
-      while (str.length < 5) {
-        str = "0" + str;
-      }
-
-      console.log("- Send block ", i / nInterval + 1, " block");
-      console.log("0x" + str);
-
-      let upper = (binBuf.length < i + nInterval) ? binBuf.length : i + nInterval;
-      let payloadBuf = new Buffer.alloc(nInterval);
-      for (let j = i; j < upper; j++) {
-        payloadBuf[j - i] = binBuf[j];
-      }
-
-      id = i / nInterval + 1;
-      let block = (Packet.BUse1K == true) ? Packet.getLongPacket(id, payloadBuf) : Packet.getNormalPacket(
-        id,
-        payloadBuf
-      )
-
-      // await DelayMs(10)
-      writeSerial(port, block);
-
-      // receive ack
-      let result = await ReceivePacket(emData, port, serial.RxBuffer, 1, 2000);
-      if (result == "OK") {
-        printRxBuf(serial.RxBuffer, 1)
-      } else {
-        console.log("no response")
-        errors++;
-        i -= 128;
-        continue;
-      }
-
-      if (serial.RxBuffer[0] === Packet.CA) {
-        console.log("Write to Flash failed")
-        resolve("-5");
-        return;
-      }
-      else if (serial.RxBuffer[0] !== Packet.ACK) {
-        console.log("no ACK")
-        errors++;
-        i -= 128;
-        continue;
-      }
-      console.log("- Send block " + id +
-        " succceed!");
+    result = await sendBlockFile(port, binBuf);
+    if(result !== "OK"){
+      console.log("-- send files failed")
+      resolve("NOK")
+      return
     }
 
     result = await sendBlockEOT(port)
@@ -249,11 +262,6 @@ async function main() {
   console.log("Begin to download");
 
   while (true) {
-    await DelayMs(1000);
-
-    // console.log("a");
-    // port.write("a");
-    //
     let result = await syncWithClient(port, serial.RxBuffer)
     if (result == "OK") {
       console.log("sync ok")
