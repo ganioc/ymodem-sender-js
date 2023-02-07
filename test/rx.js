@@ -9,24 +9,7 @@ const Packet = require("../packet")
 const events = require("events")
 const emData = new events.EventEmitter();
 const crc16 = require("../crc16");
-
-// const fileName = "./bin/L072cbos.bin";
-// const SOH = 0x01 /* start of 128-byte data packet */
-// const STX = 0x02  /* start of 1024-byte data packet */
-// const EOT = 0x04  /* end of transmission */
-// const ACK = 0x06 /* acknowledge */
-// const NAK = 0x15 /* negative acknowledge */
-// const CA = 0x18 /* two of these in succession aborts transfer */
-// const CRC16 = 0x43  /* 'C' == 0x43, request 16-bit CRC */
-// const NEGATIVE_BYTE = 0xFF
-
-// const ABORT1 = 0x41  /* 'A' == 0x41, abort by user */
-// const ABORT2 = 0x61  /* 'a' == 0x61, abort by user */
-
-// const NAK_TIMEOUT = 10000
-// const DOWNLOAD_TIMEOUT = 1000 /* One second retry delay */
-// const MAX_ERRORS = 10
-
+const lib = require("../lib")
 
 let rxBuffer = new Buffer.alloc(1024 + 16);
 let rxIndex = 0;
@@ -39,6 +22,7 @@ let bUse1K = false;
 function DelayMs(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+const printRxBuf = lib.PrintRxBuf;
 
 function printConfig(cfg) {
   // console.log(cfg);
@@ -49,32 +33,32 @@ function printConfig(cfg) {
   console.log("\n")
 }
 
-function printRxBuf (buffer, len) {
-  console.log("printRxBuf: " + rxIndex);
-  // for (let i = 0; i < rxIndex; i += 6) {
-  //     let strOut = "0x" + i.toString(16) + ": ";
-  //     let upper = (rxIndex < (i + 6)) ? rxIndex : (i + 6)
-  //     for (let j = i; j < upper; j++) {
-  //         strOut += rxBuffer[j].toString(16);
-  //         strOut += " ";
-  //     }
-  //     console.log(strOut);
-  // }
-  let buf = Buffer.alloc(len);
-  buffer.copy(buf, 0, 0, len)
+// function printRxBuf (buffer, len) {
+//   console.log("printRxBuf: " + rxIndex);
+//   // for (let i = 0; i < rxIndex; i += 6) {
+//   //     let strOut = "0x" + i.toString(16) + ": ";
+//   //     let upper = (rxIndex < (i + 6)) ? rxIndex : (i + 6)
+//   //     for (let j = i; j < upper; j++) {
+//   //         strOut += rxBuffer[j].toString(16);
+//   //         strOut += " ";
+//   //     }
+//   //     console.log(strOut);
+//   // }
+//   let buf = Buffer.alloc(len);
+//   buffer.copy(buf, 0, 0, len)
 
-  for (let i = 0; i < buf.length; i += 16) {
-    let str = "0x";
-    str += ((i.toString(16).length < 2) ? ("0" + i.toString(16)) : i.toString(16)) + ": ";
-    let upper = (buf.length < i + 16) ? buf.length : i + 16;
-    for (let j = i; j < upper; j++) {
-        str += (buf[j].toString(16).length < 2 ?
-            "0" + buf[j].toString(16) : buf[j].toString(16));
-        str += " "
-    }
-    console.log(str);
-  }
-}
+//   for (let i = 0; i < buf.length; i += 16) {
+//     let str = "0x";
+//     str += ((i.toString(16).length < 2) ? ("0" + i.toString(16)) : i.toString(16)) + ": ";
+//     let upper = (buf.length < i + 16) ? buf.length : i + 16;
+//     for (let j = i; j < upper; j++) {
+//         str += (buf[j].toString(16).length < 2 ?
+//             "0" + buf[j].toString(16) : buf[j].toString(16));
+//         str += " "
+//     }
+//     console.log(str);
+//   }
+// }
 function extract_file_name_size(buffer){
   let index = 3;
 
