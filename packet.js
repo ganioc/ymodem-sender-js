@@ -21,7 +21,7 @@ const NORMAL_LEN = 128;
 const LONG_LEN = 1024;
 const DATA_INDEX = 3;
 
-function getNormalPacket (id, contentBuf) {
+function getNormalPacket(id, contentBuf) {
   let buf = new Buffer.alloc(NORMAL_LEN + 3 + 2);
   let i = 0;
   buf[i++] = SOH;
@@ -51,7 +51,7 @@ function getNormalPacket (id, contentBuf) {
   return buf;
 }
 
-function getLongPacket (id, contentBuf) {
+function getLongPacket(id, contentBuf) {
   let buf = new Buffer.alloc(LONG_LEN + 3 + 2);
   let i = 0;
   buf[i++] = STX;
@@ -80,7 +80,7 @@ function getLongPacket (id, contentBuf) {
 
   return buf;
 }
-function getZeroContent (fileSymbol, fileLen) {
+function getZeroContent(fileSymbol, fileLen) {
 
   let buf = new Buffer.alloc(128);
 
@@ -102,7 +102,28 @@ function getZeroContent (fileSymbol, fileLen) {
 let packet = {
   getZeroContent: getZeroContent,
   getNormalPacket: getNormalPacket,
-  getLongPacket: getLongPacket
+  getLongPacket: getLongPacket,
+
+  
+  SOH : 0x01, /* start of 128-byte data packet */
+  STX: 0x02,  /* start of 1024-byte data packet */
+  EOT: 0x04,  /* end of transmission */
+  ACK: 0x06,/* acknowledge */
+  NAK: 0x15, /* negative acknowledge */
+  CA: 0x18, /* two of these in succession aborts transfer */
+  CRC16: 0x43,  /* 'C' :: 0x43, request 16-bit CRC */
+  NEGATIVE_BYTE: 0xFF,
+
+  ABORT1: 0x41, /* 'A' == 0x41, abort by user */
+  ABORT2: 0x61,  /* 'a' == 0x61, abort by user */
+
+  NAK_TIMEOUT: 10000,
+  DOWNLOAD_TIMEOUT: 1000, /* One second retry delay */
+  MAX_ERRORS: 10,
+
+  NORMAL_LEN: 128,
+  LONG_LEN: 1024,
+  DATA_INDEX: 3
 };
 
 module.exports = packet;
