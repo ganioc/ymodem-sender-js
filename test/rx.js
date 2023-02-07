@@ -46,11 +46,12 @@ function extract_file_name_size(buffer){
 
 async function ReceivePacketEx(port, buf, timeout) {
   let packet_size = 0;
-  let status = "OK"
+  let status = "OK";
+  const nInterval = (Packet.BUse1K == true) ? 1024 : 128;
 
   return new Promise(async (resolve) => {
     console.log("ReceivePacketEx()")
-    let status1 = await UartReceivePacketEx(emData, port, buf,128+5, 1000);
+    let status1 = await UartReceivePacketEx(emData, port, buf,nInterval+5, 1000);
     console.log("status1", status1);
 
     // Seems to be a complete packet , 128 size
@@ -76,9 +77,9 @@ async function ReceivePacketEx(port, buf, timeout) {
           let crc = serial.RxBuffer[ packet_size + 3] << 8;
           crc += serial.RxBuffer[ packet_size + 4];
 
-          let bufTemp = Buffer.alloc(128);
-          serial.RxBuffer.copy(bufTemp, 0, 3, 128 + 3)
-          let crcTemp = crc16(bufTemp, 128)
+          let bufTemp = Buffer.alloc(packet_size);
+          serial.RxBuffer.copy(bufTemp, 0, 3, packet_size + 3)
+          let crcTemp = crc16(bufTemp, packet_size)
           if(crc != crcTemp){
             console.log("crc calc not match!!!")
             packet_size = 0
@@ -94,7 +95,7 @@ async function ReceivePacketEx(port, buf, timeout) {
           status = "OK";
           break;
         case Packet.CA:
-          if(serial.RxBuffer[1] == CA){
+          if(serial.RxBuffer[1] == Packet.CA){
             packet_size = 2
           }else{
             status = "ERROR"
