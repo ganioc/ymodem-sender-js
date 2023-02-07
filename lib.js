@@ -26,7 +26,7 @@ function printRxBuf (buffer, len) {
       }
       console.log(str);
     }
-  }
+}
 
 module.exports = {
     DelayMs: DelayMs,

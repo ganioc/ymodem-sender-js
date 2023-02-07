@@ -16,19 +16,8 @@ let bUse1K = false;
 
 const DelayMs = lib.DelayMs;
 const printConfig = lib.PrintConfig;
+const printRxBuf = lib.PrintRxBuf;
 
-function printRxBuf () {
-  console.log("printRxBuf: " + rxIndex);
-  for (let i = 0; i < rxIndex; i += 6) {
-      let strOut = "0x" + i.toString(16) + ": ";
-      let upper = (rxIndex < (i + 6)) ? rxIndex : (i + 6)
-      for (let j = i; j < upper; j++) {
-          strOut += rxBuffer[j].toString(16);
-          strOut += " ";
-      }
-      console.log(strOut);
-  }
-}
 
 function ReceivePacket (pot, buf, len, timeout) {
 
@@ -75,10 +64,6 @@ function writeSerial (pot, buf, ind) {
       console.log(str);
   }
   pot.write(buf);
-  // for (let i = 0; i < buf.length; i++) {
-  //     let dBuf = Buffer.from([buf[i]])
-  //     pot.write(dBuf);
-  // }
 }
 async function syncWithRx (pot, buf) {
   let counter = 0;
@@ -89,7 +74,7 @@ async function syncWithRx (pot, buf) {
           let result = await ReceivePacket(pot, buf, 1, 1000);
           console.log(result);
           if (result === "OK") {
-              printRxBuf();
+              printRxBuf(rxBuffer, rxIndex);
               if (buf[0] === Packet.CRC16) {
                   counter++;
               }

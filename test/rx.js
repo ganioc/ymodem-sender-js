@@ -14,51 +14,11 @@ const lib = require("../lib")
 let rxBuffer = new Buffer.alloc(1024 + 16);
 let rxIndex = 0;
 let packetLength = 0;
-
-let bLoop = true;
-
 let bUse1K = false;
 
-function DelayMs(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 const printRxBuf = lib.PrintRxBuf;
+const DelayMs = lib.DelayMs;
 
-function printConfig(cfg) {
-  // console.log(cfg);
-  console.log("Port:", cfg.slave.port);
-  console.log("Baudrate:", cfg.baudrate);
-  console.log("File name:", cfg.file.name);
-  console.log("File symbol:", cfg.file.symbol);
-  console.log("\n")
-}
-
-// function printRxBuf (buffer, len) {
-//   console.log("printRxBuf: " + rxIndex);
-//   // for (let i = 0; i < rxIndex; i += 6) {
-//   //     let strOut = "0x" + i.toString(16) + ": ";
-//   //     let upper = (rxIndex < (i + 6)) ? rxIndex : (i + 6)
-//   //     for (let j = i; j < upper; j++) {
-//   //         strOut += rxBuffer[j].toString(16);
-//   //         strOut += " ";
-//   //     }
-//   //     console.log(strOut);
-//   // }
-//   let buf = Buffer.alloc(len);
-//   buffer.copy(buf, 0, 0, len)
-
-//   for (let i = 0; i < buf.length; i += 16) {
-//     let str = "0x";
-//     str += ((i.toString(16).length < 2) ? ("0" + i.toString(16)) : i.toString(16)) + ": ";
-//     let upper = (buf.length < i + 16) ? buf.length : i + 16;
-//     for (let j = i; j < upper; j++) {
-//         str += (buf[j].toString(16).length < 2 ?
-//             "0" + buf[j].toString(16) : buf[j].toString(16));
-//         str += " "
-//     }
-//     console.log(str);
-//   }
-// }
 function extract_file_name_size(buffer){
   let index = 3;
 
