@@ -9,7 +9,6 @@ const events = require("events")
 const emData = new events.EventEmitter();
 const lib = require("../lib")
 const serial = require("../serial");
-const { resolve } = require('path');
 
 const DelayMs = lib.DelayMs;
 const printConfig = lib.PrintConfig;
@@ -24,7 +23,7 @@ async function syncWithClient(port, buf, times) {
   return new Promise(async (resolve) => {
     while (counter_timeout < 10) {
       console.log("Sync with Rx counter:", counter_sync);
-      let result = await ReceivePacket(emData, port, buf, 1, 1000);
+      let result = await ReceivePacket(emData, buf, 1, 1000);
       console.log(result);
       if (result.status === "OK") {
         printRxBuf(serial.RxBuffer, serial.RxIndex);
@@ -53,7 +52,7 @@ async function sendBlock0(port, id, fileName, fileLen){
       console.log("- Send out blockZero");
 
       // wait ACK
-      let result = await ReceivePacket(emData, port, serial.RxBuffer, 2, 2000);
+      let result = await ReceivePacket(emData, serial.RxBuffer, 2, 1000);
       if (result.status == "OK" && serial.RxBuffer[0] == Packet.ACK && serial.RxBuffer[1] == Packet.CRC16) {
         console.log("Received ACK OK")
         resolve("OK")
@@ -72,36 +71,28 @@ async function sendBlock0(port, id, fileName, fileLen){
 }
 async function sendBlockEOT(port){
   console.log("-- Send EOT")
-  let errors = 0
 
   return new Promise(async (resolve) => {
-    do {
-      if (errors > 5) {
-        resolve("NOK")
-        return
-      }
-      await DelayMs(50);
-      writeSerial(port, Buffer.from([Packet.EOT]))
+    await DelayMs(50)
+    writeSerial(port, Buffer.from([Packet.EOT]))
+    let result = await ReceivePacket(emData, serial.RxBuffer, 1, 1000);
+    if (result.status != "OK" || serial.RxBuffer[0] !== Packet.NAK) {
+      resolve("NOK")
+      return
+    }
+    writeSerial(port, Buffer.from([Packet.EOT]))
+    result = await ReceivePacket(emData, serial.RxBuffer, 1, 1000);
+    if (result.status != "OK" || serial.RxBuffer[0] !== Packet.ACK) {
+      resolve("NOK")
+      return
+    }
 
-      let result = await ReceivePacket(emData, port, serial.RxBuffer, 1, 1000)
-      if (result.status == "OK") {
-        printRxBuf(serial.RxBuffer, 1);
-      } else {
-        console.log("no response")
-        errors++
-        continue;
-      }
-      if (serial.RxBuffer[0] != Packet.ACK) {
-        console.log("no ACK ", serial.RxBuffer[0]);
-        errors++;
-        continue;
-      } else {
-        console.log("ACK")
-        break;
-      }
+    result = await ReceivePacket(emData, serial.RxBuffer, 1, 1000);
+    if (result.status != "OK" || serial.RxBuffer[0] !== Packet.CRC16) {
+      resolve("NOK")
+      return
+    }
 
-    } while (true);
-    console.log("- EOT send succeed!")  
     resolve("OK")
   });
 }
@@ -117,13 +108,8 @@ async function sendBlockFile(port, buf){
         resolve("NOK")
         return
       }
-      let str = i.toString(16);
-      while (str.length < 5) {
-        str = "0" + str;
-      }
 
-      console.log("- Send block ", i / nInterval + 1, " block");
-      console.log("0x" + str);
+      console.log("- Send block ", i / nInterval + 1);
 
       let upper = (buf.length < i + nInterval) ? buf.length : i + nInterval;
       let payloadBuf = new Buffer.alloc(nInterval);
@@ -141,7 +127,7 @@ async function sendBlockFile(port, buf){
       writeSerial(port, block);
 
       // receive ack
-      let result = await ReceivePacket(emData, port, serial.RxBuffer, 1, 1000);
+      let result = await ReceivePacket(emData, serial.RxBuffer, 1, 500);
       if (result.status == "OK") {
         printRxBuf(serial.RxBuffer, 1)
       } else {
@@ -184,7 +170,7 @@ async function sendBlockLast(port){
         return;
       }
       writeSerial(port, blockLast);
-      let result = await ReceivePacket(emData, port, serial.RxBuffer, 1, 1000)
+      let result = await ReceivePacket(emData, serial.RxBuffer, 1, 1000)
       if (result.status == "OK" && serial.RxBuffer[0] == Packet.ACK) {
         printRxBuf(serial.RxBuffer, 1)
         break

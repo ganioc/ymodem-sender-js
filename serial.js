@@ -1,6 +1,7 @@
 "use strict";
 
-const lib = require("./lib")
+const lib = require("./lib");
+const packet = require("./packet");
 
 const printRxBuf = lib.PrintRxBuf;
 
@@ -29,9 +30,10 @@ function writeSerial (pot, buf) {
 * status: OK, DATA, TIMEOUT, 
 * length: 数据的长度, 128+5, 1024+5, 3个头，2个CRC,
 */
-async function readSerial(eventEmitter, port, buf, len, timeout) {
+async function readSerial(eventEmitter, buf, len, timeout) {
 
     rxIndex = 0;
+    let len_expected = len;
   
     return new Promise(async (resolve) => {
   
@@ -41,7 +43,7 @@ async function readSerial(eventEmitter, port, buf, len, timeout) {
         if(rxIndex > 0){
           printRxBuf(buf, rxIndex);
           resolve({
-            status: 'DATA',
+            status: 'OK',
             length: rxIndex
           })
         }else{
@@ -54,7 +56,15 @@ async function readSerial(eventEmitter, port, buf, len, timeout) {
         for (let i = 0; i < data.length; i++) {
           buf[rxIndex++] = data[i];
         }
-        if (rxIndex >= len) {
+
+        if(buf[0] == packet.SOH){
+          len_expected = 128+5;
+        }else if(buf[0] == packet.STX){
+          len_expected = 1024+5;
+        }
+
+        // 多收到的数据字节不予处理
+        if (rxIndex >= len_expected) {
           if (handle) {
             clearTimeout(handle);
           }

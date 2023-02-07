@@ -1,6 +1,5 @@
 // receive from tx.js, using ymodem protocol,
 
-// transmit to rx.js using ymodem protocol,
 "use strict";
 
 const SerialPort = require('serialport')
@@ -10,10 +9,10 @@ const events = require("events")
 const emData = new events.EventEmitter();
 const crc16 = require("../crc16");
 const lib = require("../lib")
-const serial = require("../serial")
+const serial = require("../serial");
 
 
-let packetLength = 0;
+// let packetLength = 0;
 
 const printRxBuf = lib.PrintRxBuf;
 const DelayMs = lib.DelayMs;
@@ -56,21 +55,41 @@ function extract_file_name_size(buffer){
 async function ReceivePacketEx(port, buf, timeout) {
   let packet_size = 0; // size of the packet is indicated by 1st byte, 
   let status = "OK";
+  let type = "";
 
   return new Promise(async (resolve) => {
     console.log("ReceivePacketEx()")
-    let status1 = await UartReceivePacketEx(emData, port, buf,nInterval+5, 1000);
+    let status1 = await UartReceivePacketEx(emData, buf, 1024+5, timeout);
     console.log("status1", status1);
 
     // Seems to be a complete packet , (128 size or 1024) + 5
+    // Will we receive length > 1024 + 5?
     if (status1.status == "OK") {
       let char1 = serial.RxBuffer[0];
       switch(char1){
         case Packet.SOH :
           packet_size = 128
+          type = "SOH"
           break;
         case Packet.STX:
           packet_size = 1024
+          type = "STX"
+          break;
+        case Packet.EOT:
+          packet_size = 1;
+          type = "EOT"
+          break;
+        case Packet.CA:
+          if(serial.RxBuffer[1] == Packet.CA){
+            packet_size = 2
+            type = "CA"
+          }else{
+            status = "ERROR"
+          }
+          break;
+        case Packet.ABORT1:
+        case Packet.ABORT2:
+          status = "BUSY"
           break;
         default:
           status = "ERROR"
@@ -96,43 +115,19 @@ async function ReceivePacketEx(port, buf, timeout) {
           }
         }
       }
-    } else if (status1.status == "DATA") {
-      console.log("DATA packet")
-      let char1 = serial.RxBuffer[0];
-      switch(char1){
-        case Packet.EOT:
-          status = "OK";
-          break;
-        case Packet.CA:
-          if(serial.RxBuffer[1] == Packet.CA){
-            packet_size = 2
-          }else{
-            status = "ERROR"
-          }
-          break;
-        case Packet.ABORT1:
-        case Packet.ABORT2:
-          status = "BUSY"
-          break;
-        default:
-          status = "ERROR"
-      }
-
-    } else { // TIMEOUT
-      status = "ERROR"
+    } 
+    else { // TIMEOUT
+      status = "TIMEOUT"
     }
-
-    packetLength = packet_size;
-
-    resolve({status:status, length: packet_size})
+    resolve({status:status, length: packet_size, type: type})
   })
 
 }
 async function SerialDownload(port) {
-  let size         = 0;
+  // let size         = 0;
   let session_done = 0;
   let result       = "OK";
-  let packet_size  = 0;
+  // let packet_size  = 0;
   let session_begin = 0;
 
   let blocks = 0;
@@ -144,38 +139,49 @@ async function SerialDownload(port) {
       let file_done = 0;
       // let packets_counter = 0;
       let inRx_block0 = 0;
+      let inEOT = 0;
       let errors = 0;
 
       while (file_done == 0 && result == "OK") {
         // wait 1000 ms to receive
-        let pkt_result = await ReceivePacketEx(port, serial.RxBuffer, 500);
+        let pkt_result = await ReceivePacketEx(port, serial.RxBuffer, 200);
+        console.log("pkt_result: ", pkt_result)
 
         if(pkt_result.status == "OK"){
           console.log("Rx valid block, len:", serial.RxIndex)
           errors = 0;
-
-          let packet_length = pkt_result.length;
-          switch(packet_length){
-            case 2:
+          // It's not enough to judge packet type 
+          // let packet_length = pkt_result.length;
+          switch(pkt_result.type){
+            case "CA":
               // abort by Sender, CA, CA
               writeSerial(port, Buffer.from([Packet.ACK]))
               result = "ABORT"
               break;
-            case 0:
-              // End of transmission, not conform to YModem protocol
-              writeSerial(port, Buffer.from([Packet.ACK]))
-              file_done = 1
+            // case 0:
+            //   // End of transmission, not conform to YModem protocol
+            //   writeSerial(port, Buffer.from([Packet.ACK]))
+            //   file_done = 1
+            //   break;
+            case "EOT":
+              if(inEOT == 0){
+                writeSerial(port, Buffer.from([Packet.NAK]))
+                inEOT = 1
+              }else if (inEOT == 1){
+                writeSerial(port, Buffer.from([Packet.ACK]))
+                await DelayMs(50)
+                writeSerial(port, Buffer.from([Packet.CRC16]))
+              }
               break;
-            default:
-              // normal packet,
+            default: // normal packet,
               console.log("normal packet: ", "serial.RxBuffer[1]", serial.RxBuffer[1], "packets_received:", packets_received);
 
-              if(serial.RxBuffer[1] != packets_received%256){
+              if(serial.RxBuffer[1] !== packets_received%256 && inEOT == 0){
                 writeSerial(port, Buffer.from([Packet.NAK]))
               }else{
                 // First block block 0
                 if(packets_received == 0 && inRx_block0 == 0){
-                  if(serial.RxBuffer[3] != 0){ // First packet
+                    // First packet
                     // File name extraction
                     // File size extraction
                     extract_file_name_size(serial.RxBuffer)
@@ -188,15 +194,14 @@ async function SerialDownload(port) {
                     writeSerial(port, Buffer.from([Packet.CRC16]))
                     inRx_block0 = 1;
 
-                  }else{ // last packet
+                }else if(packets_received !== 0 && inRx_block0 == 1 && inEOT ==1){
                     // File header packet is empty, end session,
                     // Finished download,
                     writeSerial(port, Buffer.from([Packet.ACK]))
                     file_done = 1
                     session_done = 1
-                  }
-
-                }else{// Other blocks , Data packet
+                }
+                else{// Other blocks , Data packet
                   let ramsource = Buffer.alloc(nInterval);
                   serial.RxBuffer.copy(ramsource,0,3,nInterval + 3);
                   
@@ -221,7 +226,7 @@ async function SerialDownload(port) {
           writeSerial(port, Buffer.from([Packet.CA]))
           writeSerial(port, Buffer.from([Packet.CA]))
           result = "ABORT"
-        }else{ // timeout , errors
+        }else{ // timeout and errors
           if(session_begin > 0){
             errors++;
           }
@@ -231,7 +236,7 @@ async function SerialDownload(port) {
             writeSerial(port, Buffer.from([Packet.CA]))
             result = "ABORT"
           }else{
-            console.log("errors!")
+            console.log("Wait for host response!")
             writeSerial(port, Buffer.from([Packet.CRC16]))
           }
         }
