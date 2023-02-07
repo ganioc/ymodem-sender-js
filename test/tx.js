@@ -7,25 +7,7 @@ const Config = require("../config/config.json")
 const Packet = require("../packet")
 const events = require("events")
 const emData = new events.EventEmitter();
-const crc32 = require("js-crc32");
-const { resolve } = require('path');
 
-// const fileName = "./bin/L072cbos.bin";
-const SOH = 0x01 /* start of 128-byte data packet */
-const STX = 0x02  /* start of 1024-byte data packet */
-const EOT = 0x04  /* end of transmission */
-const ACK = 0x06 /* acknowledge */
-const NAK = 0x15 /* negative acknowledge */
-const CA = 0x18 /* two of these in succession aborts transfer */
-const CRC16 = 0x43  /* 'C' == 0x43, request 16-bit CRC */
-const NEGATIVE_BYTE = 0xFF
-
-const ABORT1 = 0x41  /* 'A' == 0x41, abort by user */
-const ABORT2 = 0x61  /* 'a' == 0x61, abort by user */
-
-const NAK_TIMEOUT = 10000
-const DOWNLOAD_TIMEOUT = 1000 /* One second retry delay */
-const MAX_ERRORS = 10
 
 
 let rxBuffer = new Buffer.alloc(1024 + 16);
@@ -124,7 +106,7 @@ async function syncWithRx (pot, buf) {
           console.log(result);
           if (result === "OK") {
               printRxBuf();
-              if (buf[0] === CRC16) {
+              if (buf[0] === Packet.CRC16) {
                   counter++;
               }
               if(counter >= 3 ){
@@ -164,7 +146,7 @@ async function sendFileAsync(port, binBuf){
         errors++;
         continue;
       }
-      if(rxBuffer[0] == ACK && rxBuffer[1] == CRC16){
+      if(rxBuffer[0] == Packet.ACK && rxBuffer[1] == Packet.CRC16){
         console.log("Received ACK OK")
         break;
       }else{
@@ -227,12 +209,12 @@ async function sendFileAsync(port, binBuf){
         continue;
       }
 
-      if (rxBuffer[0] === CA) {
+      if (rxBuffer[0] === Packet.CA) {
         console.log("Write to Flash failed")
         resolve("-5");
         return;
       }
-      else if (rxBuffer[0] !== ACK) {
+      else if (rxBuffer[0] !== Packet.ACK) {
         console.log("no ACK")
         errors++;
         i -= 128;
@@ -251,7 +233,7 @@ async function sendFileAsync(port, binBuf){
         return
       }
       await DelayMs(100)
-      writeSerial(port, Buffer.from([EOT]))
+      writeSerial(port, Buffer.from([Packet.EOT]))
 
       let result = await ReceivePacket(port, rxBuffer, 1, 1500)
       if(result == "OK"){
@@ -261,7 +243,7 @@ async function sendFileAsync(port, binBuf){
         errors++
         continue;
       }
-      if(rxBuffer[0] != ACK){
+      if(rxBuffer[0] != Packet.ACK){
         console.log("no ACK ", rxBuffer[0]);
         errors++;
         continue;
@@ -296,7 +278,7 @@ async function sendFileAsync(port, binBuf){
         errors++
         continue;
       }
-      if(rxBuffer[0] != ACK){
+      if(rxBuffer[0] != Packet.ACK){
         console.log("no ACK")
         errors++;
         continue;

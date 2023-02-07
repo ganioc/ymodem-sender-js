@@ -4,31 +4,28 @@
 "use strict";
 
 const SerialPort = require('serialport')
-const fs = require('fs')
 const Config = require("../config/config.json")
 const Packet = require("../packet")
 const events = require("events")
 const emData = new events.EventEmitter();
-const crc32 = require("js-crc32");
-const { resolve } = require('path');
 const crc16 = require("../crc16");
 
 // const fileName = "./bin/L072cbos.bin";
-const SOH = 0x01 /* start of 128-byte data packet */
-const STX = 0x02  /* start of 1024-byte data packet */
-const EOT = 0x04  /* end of transmission */
-const ACK = 0x06 /* acknowledge */
-const NAK = 0x15 /* negative acknowledge */
-const CA = 0x18 /* two of these in succession aborts transfer */
-const CRC16 = 0x43  /* 'C' == 0x43, request 16-bit CRC */
-const NEGATIVE_BYTE = 0xFF
+// const SOH = 0x01 /* start of 128-byte data packet */
+// const STX = 0x02  /* start of 1024-byte data packet */
+// const EOT = 0x04  /* end of transmission */
+// const ACK = 0x06 /* acknowledge */
+// const NAK = 0x15 /* negative acknowledge */
+// const CA = 0x18 /* two of these in succession aborts transfer */
+// const CRC16 = 0x43  /* 'C' == 0x43, request 16-bit CRC */
+// const NEGATIVE_BYTE = 0xFF
 
-const ABORT1 = 0x41  /* 'A' == 0x41, abort by user */
-const ABORT2 = 0x61  /* 'a' == 0x61, abort by user */
+// const ABORT1 = 0x41  /* 'A' == 0x41, abort by user */
+// const ABORT2 = 0x61  /* 'a' == 0x61, abort by user */
 
-const NAK_TIMEOUT = 10000
-const DOWNLOAD_TIMEOUT = 1000 /* One second retry delay */
-const MAX_ERRORS = 10
+// const NAK_TIMEOUT = 10000
+// const DOWNLOAD_TIMEOUT = 1000 /* One second retry delay */
+// const MAX_ERRORS = 10
 
 
 let rxBuffer = new Buffer.alloc(1024 + 16);
@@ -173,10 +170,10 @@ async function ReceivePacketEx(port, buf, timeout) {
     if (status1 == "OK") {
       let char1 = rxBuffer[0];
       switch(char1){
-        case SOH :
+        case Packet.SOH :
           packet_size = 128
           break;
-        case STX:
+        case Packet.STX:
           packet_size = 1024
           break;
         default:
@@ -206,18 +203,18 @@ async function ReceivePacketEx(port, buf, timeout) {
       console.log("DATA packet")
       let char1 = rxBuffer[0];
       switch(char1){
-        case EOT:
+        case Packet.EOT:
           status = "OK";
           break;
-        case CA:
+        case Packet.CA:
           if(rxBuffer[1] == CA){
             packet_size = 2
           }else{
             status = "ERROR"
           }
           break;
-        case ABORT1:
-        case ABORT2:
+        case Packet.ABORT1:
+        case Packet.ABORT2:
           status = "BUSY"
           break;
         default:
@@ -269,12 +266,12 @@ async function SerialDownload(port, binBuf) {
           switch(packet_length){
             case 2:
               // abort by Sender
-              writeSerial(port, Buffer.from([ACK]))
+              writeSerial(port, Buffer.from([Packet.ACK]))
               result = "ABORT"
               break;
             case 0:
               // End of transmission
-              writeSerial(port, Buffer.from([ACK]))
+              writeSerial(port, Buffer.from([Packet.ACK]))
               file_done = 1
               break;
             default:
@@ -282,7 +279,7 @@ async function SerialDownload(port, binBuf) {
               console.log("normal packet: ", "rxBuffer[1]", rxBuffer[1], "packets_received:", packets_received);
 
               if(rxBuffer[1] != packets_received%256){
-                writeSerial(port, Buffer.from([NAK]))
+                writeSerial(port, Buffer.from([Packet.NAK]))
               }else{
                 // First block block 0
                 if(packets_received == 0 && inRx == 0){
@@ -294,15 +291,15 @@ async function SerialDownload(port, binBuf) {
                     // Test the size of image to be sent
                     // Image size greater than the Flash size
                     console.log("erase the blank sector")
-                    writeSerial(port, Buffer.from([ACK]))
+                    writeSerial(port, Buffer.from([Packet.ACK]))
                     // await DelayMs(500);
-                    writeSerial(port, Buffer.from([CRC16]))
+                    writeSerial(port, Buffer.from([Packet.CRC16]))
                     inRx = 1;
 
                   }else{ // last packet
                     // File header packet is empty, end session,
                     // Finished download,
-                    writeSerial(port, Buffer.from([ACK]))
+                    writeSerial(port, Buffer.from([Packet.ACK]))
                     file_done = 1
                     session_done = 1
                   }
@@ -316,7 +313,7 @@ async function SerialDownload(port, binBuf) {
                   blocks++;
                   console.log("blocks: ", blocks);
 
-                  writeSerial(port, Buffer.from([ACK]))
+                  writeSerial(port, Buffer.from([Packet.ACK]))
                   
                 }
 
@@ -330,21 +327,21 @@ async function SerialDownload(port, binBuf) {
           }
         }
         else if(pkt_result == "BUSY"){
-          writeSerial(port, Buffer.from([CA]))
-          writeSerial(port, Buffer.from([CA]))
+          writeSerial(port, Buffer.from([Packet.CA]))
+          writeSerial(port, Buffer.from([Packet.CA]))
           result = "ABORT"
         }else{ // timeout , errors
           if(session_begin > 0){
             errors++;
           }
-          if(errors > MAX_ERRORS){
+          if(errors > Packet.MAX_ERRORS){
             // Abort communication
-            writeSerial(port, Buffer.from([CA]))
-            writeSerial(port, Buffer.from([CA]))
+            writeSerial(port, Buffer.from([Packet.CA]))
+            writeSerial(port, Buffer.from([Packet.CA]))
             result = "ABORT"
           }else{
             console.log("errors!")
-            writeSerial(port, Buffer.from([CRC16]))
+            writeSerial(port, Buffer.from([Packet.CRC16]))
           }
         }
       }
