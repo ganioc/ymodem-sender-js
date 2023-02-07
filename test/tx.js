@@ -10,11 +10,6 @@ const emData = new events.EventEmitter();
 const lib = require("../lib")
 const serial = require("../serial")
 
-// let serial.RxBuffer = new Buffer.alloc(1024 + 16);
-// let serial.serial.RxIndex = 0;
-let bUse1K = false;
-
-
 const DelayMs = lib.DelayMs;
 const printConfig = lib.PrintConfig;
 const printRxBuf = lib.PrintRxBuf;
@@ -124,7 +119,7 @@ async function sendFileAsync(port, binBuf){
 
     // id++
     errors = 0;
-    let nInterval = (bUse1K == true)? 1024: 128;
+    let nInterval = (Packet.BUse1K == true)? 1024: 128;
     for(let i=0; i< binBuf.length; i+=nInterval){
       if(errors > 5){
         console.log("Sending blocks failed")
@@ -146,7 +141,7 @@ async function sendFileAsync(port, binBuf){
       }
 
       id = i/nInterval + 1;
-      let block = (bUse1K == true)? Packet.getLongPacket(id, payloadBuf):Packet.getNormalPacket(
+      let block = (Packet.BUse1K == true)? Packet.getLongPacket(id, payloadBuf):Packet.getNormalPacket(
         id,
         payloadBuf
       )
@@ -252,7 +247,7 @@ async function sendFileAsync(port, binBuf){
 
 async function main () {
   console.log("-- TX --");
-  console.log("use Ymodem 1k: ", bUse1K);
+  console.log("use Ymodem 1k: ", Packet.BUse1K);
   printConfig(Config)
 
   let port = new SerialPort(Config.tx.port, {

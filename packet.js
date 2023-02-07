@@ -21,6 +21,8 @@ const NORMAL_LEN = 128;
 const LONG_LEN = 1024;
 const DATA_INDEX = 3;
 
+let bUse1K = false;
+
 function getNormalPacket(id, contentBuf) {
   let buf = new Buffer.alloc(NORMAL_LEN + 3 + 2);
   let i = 0;
@@ -123,7 +125,9 @@ let packet = {
 
   NORMAL_LEN: 128,
   LONG_LEN: 1024,
-  DATA_INDEX: 3
+  DATA_INDEX: 3,
+
+  BUse1K: bUse1K,
 };
 
 module.exports = packet;

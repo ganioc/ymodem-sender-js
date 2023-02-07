@@ -12,9 +12,7 @@ const crc16 = require("../crc16");
 const lib = require("../lib")
 const serial = require("../serial")
 
-
 let packetLength = 0;
-let bUse1K = false;
 
 const printRxBuf = lib.PrintRxBuf;
 const DelayMs = lib.DelayMs;
@@ -295,7 +293,7 @@ async function main() {
 
 
   console.log("-- RX --");
-  console.log("use Ymodem 1k: ", bUse1K);
+  console.log("use Ymodem 1k: ", Packet.BUse1K);
 
   let port = new SerialPort(Config.rx.port, {
     baudRate: Config.baudrate
