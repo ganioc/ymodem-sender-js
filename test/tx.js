@@ -7,31 +7,15 @@ const Config = require("../config/config.json")
 const Packet = require("../packet")
 const events = require("events")
 const emData = new events.EventEmitter();
-
-
+const lib = require("../lib")
 
 let rxBuffer = new Buffer.alloc(1024 + 16);
 let rxIndex = 0;
-
-let bLoop = true;
-
 let bUse1K = false;
 
 
-
-
-function DelayMs (ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function printConfig (cfg) {
-  // console.log(cfg);
-  console.log("Port:", cfg.tx.port);
-  console.log("Baudrate:", cfg.baudrate);
-  console.log("File name:", cfg.file.name);
-  console.log("File symbol:", cfg.file.symbol);
-  console.log("\n")
-}
+const DelayMs = lib.DelayMs;
+const printConfig = lib.PrintConfig;
 
 function printRxBuf () {
   console.log("printRxBuf: " + rxIndex);
