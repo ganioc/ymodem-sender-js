@@ -12,11 +12,13 @@ const crc16 = require("../crc16");
 const lib = require("../lib")
 const serial = require("../serial")
 
+
 let packetLength = 0;
 
 const printRxBuf = lib.PrintRxBuf;
 const DelayMs = lib.DelayMs;
 const writeSerial = serial.WriteSerial;
+const UartReceivePacketEx = serial.ReadSerial;
 
 function extract_file_name_size(buffer){
   let index = 3;
@@ -41,72 +43,14 @@ function extract_file_name_size(buffer){
   console.log(file_size.toString())
 
 }
-// function writeSerial(port, buf) {
-//   console.log("writeSerial ...")
-//   // Only print out
-//   for (let i = 0; i < buf.length; i += 16) {
-//     let str = "0x";
-//     str += ((i.toString(16).length < 2) ? ("0" + i.toString(16)) : i.toString(16)) + ": ";
-//     let upper = (buf.length < i + 16) ? buf.length : i + 16;
-//     for (let j = i; j < upper; j++) {
-//       str += (buf[j].toString(16).length < 2 ?
-//         "0" + buf[j].toString(16) : buf[j].toString(16));
-//       str += " "
-//     }
-//     console.log(str);
-//   }
-//   port.write(buf);
-//   // for (let i = 0; i < buf.length; i++) {
-//   //     let dBuf = Buffer.from([buf[i]])
-//   //     pot.write(dBuf);
-//   // }
-// }
-async function UartReceivePacketEx(port, buf, timeout) {
-  serial.RxIndex = 0;
-  let len = 128 + 5; // As we are receiving 1024 packet, actually it's 128 bytes, 
 
-  return new Promise(async (resolve) => {
-
-    let handle = setTimeout(() => {
-      console.log("ReceivePacket timeout");
-      emData.removeAllListeners("data");
-
-      if(serial.RxIndex > 0){
-        printRxBuf(buf, serial.RxIndex);
-        resolve('DATA')
-      }else{
-        resolve('TIMEOUT')
-      }
-      
-    }, timeout);
-
-    let callback = (data) => {
-      let i = 0;
-      for (i = 0; i < data.length; i++) {
-        buf[serial.RxIndex++] = data[i];
-      }
-      if (serial.RxIndex >= len) {
-        if (handle) {
-          clearTimeout(handle);
-        }
-        console.log("ReceivePacket rx length:", serial.RxIndex);
-        emData.removeAllListeners("data");
-        printRxBuf(buf, serial.RxIndex);
-
-        resolve('OK')
-      }
-    };
-
-    emData.on("data", callback);
-  })
-}
 async function ReceivePacketEx(port, buf, timeout) {
   let packet_size = 0;
   let status = "OK"
 
   return new Promise(async (resolve) => {
     console.log("ReceivePacketEx()")
-    let status1 = await UartReceivePacketEx(port, buf, 1000);
+    let status1 = await UartReceivePacketEx(emData, port, buf,128+5, 1000);
     console.log("status1", status1);
 
     // Seems to be a complete packet , 128 size

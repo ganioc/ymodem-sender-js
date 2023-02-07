@@ -1,3 +1,5 @@
+"use strict";
+
 function DelayMs (ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }

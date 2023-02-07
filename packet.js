@@ -1,3 +1,4 @@
+"use strict";
 
 let crc16 = require("./crc16")
 

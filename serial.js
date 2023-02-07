@@ -1,5 +1,8 @@
+"use strict";
 
-// const SerialPort = require('serialport')
+const lib = require("./lib")
+
+const printRxBuf = lib.PrintRxBuf;
 
 let rxBuffer = new Buffer.alloc(1024 + 16);
 let rxIndex = 0;
@@ -8,7 +11,7 @@ function resetRxIndex(){
     rxIndex = 0;
 }
 
-function writeSerial (pot, buf, ind) {
+function writeSerial (pot, buf) {
     console.log("writeSerial ...")
     // Only print out
     for (let i = 0; i < buf.length; i += 16) {
@@ -26,15 +29,14 @@ function writeSerial (pot, buf, ind) {
 }
 async function readSerial(eventEmitter, port, buf, len, timeout) {
 
-    // rxIndex = 0;
-    resetRxIndex();
+    rxIndex = 0;
 
     // let len = 128 + 5; // As we are receiving 1024 packet, actually it's 128 bytes, 
   
     return new Promise(async (resolve) => {
   
       let handle = setTimeout(() => {
-        console.log("ReceivePacket timeout");
+        // console.log("ReceivePacket timeout");
         eventEmitter.removeAllListeners("data");
   
         if(rxIndex > 0){
@@ -47,8 +49,7 @@ async function readSerial(eventEmitter, port, buf, len, timeout) {
       }, timeout);
   
       let callback = (data) => {
-        let i = 0;
-        for (i = 0; i < data.length; i++) {
+        for (let i = 0; i < data.length; i++) {
           buf[rxIndex++] = data[i];
         }
         if (rxIndex >= len) {
@@ -56,14 +57,13 @@ async function readSerial(eventEmitter, port, buf, len, timeout) {
             clearTimeout(handle);
           }
           console.log("ReceivePacket rx length:", rxIndex);
-          emData.removeAllListeners("data");
+          eventEmitter.removeAllListeners("data");
           printRxBuf(buf, rxIndex);
-  
           resolve('OK')
         }
       };
   
-      emData.on("data", callback);
+      eventEmitter.on("data", callback);
     })
 }
 
@@ -71,4 +71,5 @@ module.exports = {
     WriteSerial: writeSerial,
     RxBuffer: rxBuffer,
     RxIndex: rxIndex,
+    ReadSerial: readSerial,
 }
