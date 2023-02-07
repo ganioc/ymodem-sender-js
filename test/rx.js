@@ -20,6 +20,8 @@ const DelayMs = lib.DelayMs;
 const writeSerial = serial.WriteSerial;
 const UartReceivePacketEx = serial.ReadSerial;
 
+const nInterval = (Packet.BUse1K == true) ? 1024 : 128;
+
 let file_name = Buffer.alloc(64);
 let file_size = Buffer.alloc(64);
 
@@ -47,7 +49,7 @@ function extract_file_name_size(buffer){
 async function ReceivePacketEx(port, buf, timeout) {
   let packet_size = 0;
   let status = "OK";
-  const nInterval = (Packet.BUse1K == true) ? 1024 : 128;
+
 
   return new Promise(async (resolve) => {
     console.log("ReceivePacketEx()")
@@ -188,11 +190,11 @@ async function SerialDownload(port, binBuf) {
                   }
 
                 }else{// Other blocks , Data packet
-                  let ramsource = Buffer.alloc(128);
-                  serial.RxBuffer.copy(ramsource,0,3,128+3);
+                  let ramsource = Buffer.alloc(nInterval);
+                  serial.RxBuffer.copy(ramsource,0,3,nInterval + 3);
                   
                   console.log("Write to EEPROM")
-                  printRxBuf(ramsource, 128)
+                  printRxBuf(ramsource, nInterval)
                   blocks++;
                   console.log("blocks: ", blocks);
 
@@ -228,7 +230,6 @@ async function SerialDownload(port, binBuf) {
           }
         }
       }
-
     }
     resolve(result)
   })
@@ -236,17 +237,12 @@ async function SerialDownload(port, binBuf) {
 
 async function main() {
 
-
   console.log("-- RX --");
   console.log("use Ymodem 1k: ", Packet.BUse1K);
 
   let port = new SerialPort(Config.rx.port, {
     baudRate: Config.baudrate
   });
-
-  // emData.on("data", (data) => {
-  //   console.log("rx => ", "len:", data.length ,data);
-  // })
 
   port.on("data", (data) => {
     emData.emit("data", data);
@@ -258,8 +254,6 @@ async function main() {
   await DelayMs(500);
 
   let startTime = new Date();
-
-  
 
   let result = await SerialDownload(port, serial.RxBuffer)
 
@@ -275,4 +269,3 @@ async function main() {
 }
 
 main()
-
