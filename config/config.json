@@ -1,6 +1,6 @@
 {
 	"protocol": "ymodem",
-	"baudrate": 460800,
+	"baudrate": 115200,
 	"slave": {
 		"addr": 80,
 		"port": "/dev/tty.usbserial-14210"
