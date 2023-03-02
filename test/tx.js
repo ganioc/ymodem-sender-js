@@ -1,7 +1,7 @@
 // transmit to rx.js using ymodem protocol,
 "use strict";
 
-const SerialPort = require('serialport')
+const {SerialPort} = require('serialport')
 const fs = require('fs')
 const Config = require("../config/config.json")
 const Packet = require("../packet")
@@ -230,9 +230,17 @@ async function main() {
   console.log("use Ymodem 1k: ", Packet.BUse1K);
   printConfig(Config)
 
-  let port = new SerialPort(Config.tx.port, {
-    baudRate: Config.baudrate
-  });
+  // let port = new SerialPort(Config.tx.port, {
+  //   baudRate: Config.baudrate
+  // });
+
+  const port = new SerialPort({
+    path: Config.tx.port,
+    baudRate: Config.baudrate,
+    dataBits: 8,
+    stopBits: 1,
+    parity: 'none',
+    });
 
   port.on("data", (data) => {
     emData.emit("data", data);

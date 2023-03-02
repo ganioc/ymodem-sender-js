@@ -2,7 +2,7 @@
 
 "use strict";
 
-const SerialPort = require('serialport')
+const {SerialPort} = require('serialport')
 const Config = require("../config/config.json")
 const Packet = require("../packet")
 const events = require("events")
@@ -251,9 +251,17 @@ async function main() {
   console.log("-- RX --");
   console.log("use Ymodem 1k: ", Packet.BUse1K);
 
-  let port = new SerialPort(Config.rx.port, {
-    baudRate: Config.baudrate
-  });
+  // let port = new SerialPort(Config.rx.port, {
+  //   baudRate: Config.baudrate
+  // });
+
+  const port = new SerialPort({
+    path: Config.rx.port,
+    baudRate: Config.baudrate,
+    dataBits: 8,
+    stopBits: 1,
+    parity: 'none',
+    });
 
   port.on("data", (data) => {
     emData.emit("data", data);
