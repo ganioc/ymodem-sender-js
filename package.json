@@ -12,6 +12,6 @@
   "license": "ISC",
   "dependencies": {
     "js-crc32": "^1.0.1",
-    "serialport": "^8.0.7"
+    "serialport": "^9.2.8"
   }
 }
